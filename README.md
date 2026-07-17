@@ -35,15 +35,23 @@ files** with the lyrics burned in — those can be imported and played. The
 **encrypted chip/cartridge data** (e.g. a Magic Sing cartridge) is proprietary
 and cannot be extracted. Only use files you legally own.
 
-## Download (Windows)
+## Download (Windows & Android)
 
-Grab the latest desktop build from the **Releases** page:
+Grab the latest builds from the **Releases** page:
 
 > **https://github.com/nrldcm/okara/releases/latest**
 
-- `okara-X.Y.Z-setup.exe` — installer
-- `okara-X.Y.Z-portable.exe` — portable, no install
+- `okara-X.Y.Z-setup.exe` — Windows installer
+- `okara-X.Y.Z-portable.exe` — Windows portable, no install
+- `okara-X.Y.Z.apk` — Android app (tablet/phone as karaoke host), Android 7+
 - `SHA256SUMS.txt` — verify with `sha256sum -c SHA256SUMS.txt`
+
+**Android install:** copy the `.apk` to the device and open it (allow
+"install from unknown sources" when prompted). The app asks for mic access on
+first launch — that's what powers pitch scoring. The tablet hosts the same QR
+phone remote as the desktop app: open Settings → Phone remote and scan the QR
+with any phone on the same Wi-Fi. Updates install over the old version (same
+signing key).
 
 Releases are versioned ([SemVer](https://semver.org)) and every change is
 recorded in [`CHANGELOG.md`](CHANGELOG.md). See [`RELEASING.md`](RELEASING.md)
@@ -87,13 +95,13 @@ How the remote works:
 ## Build a Windows `.exe`
 
 **Easiest — no Windows machine needed:** GitHub Actions builds it for you
-(`.github/workflows/build-windows.yml`, on a `windows-latest` runner).
+(`.github/workflows/release.yml` builds Windows **and** Android in parallel).
 
-- **Push a version tag** (`git tag v0.2.0 && git push --tags`) → builds **and
+- **Push a version tag** (`git tag v0.3.0 && git push --tags`) → builds **and
   publishes a [GitHub Release](https://github.com/nrldcm/okara/releases)** with
-  the `.exe` files and `SHA256SUMS.txt` attached. Full steps in
+  the `.exe` files, the `.apk`, and `SHA256SUMS.txt` attached. Full steps in
   [`RELEASING.md`](RELEASING.md).
-- **Actions → "Build Windows app" → Run workflow** → same by default: builds
+- **Actions → "Build & Release" → Run workflow** → same by default: builds
   and publishes a Release, creating the `v<version>` tag from `package.json`.
   Untick **publish** for a test build (workflow artifacts only, no Release).
 
@@ -109,6 +117,21 @@ Packaging config lives in `electron-builder.yml`. The app icon comes from
 `build/icon.ico` (regenerate with `npm run icons` after editing
 `build/icon.svg`). Note: cross-compiling a Windows installer from Linux/macOS
 needs Wine — the GitHub Actions route avoids that.
+
+## Build the Android app
+
+The Android app is a Capacitor wrapper (`android/`) around the same SPA, plus
+a native LAN remote server (`RemoteServer.java`, an Android port of
+`electron/server.cjs`) so a tablet can host the QR phone remote. To build
+locally (needs JDK 21 + Android SDK):
+
+```bash
+npm ci
+NUXT_APP_BASE_URL=./ npx nuxt generate
+npx cap sync android
+cd android && ./gradlew assembleRelease
+# -> android/app/build/outputs/apk/release/app-release.apk
+```
 
 ## Build for the web
 

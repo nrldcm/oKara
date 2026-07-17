@@ -1,6 +1,6 @@
 {
   "name": "okara",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Open karaoke web app — UltraStar player, pitch scoring, and QR phone remote.",
@@ -28,6 +28,7 @@
     "icons": "node build/generate-icons.mjs"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.2",
     "bootstrap-icons": "^1.13.1",
     "nuxt": "^4.0.0",
     "qrcode": "^1.5.4",
@@ -36,6 +37,8 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
     "@types/qrcode": "^1.5.5",
     "cross-env": "^7.0.3",
     "png-to-ico": "^2.1.8",

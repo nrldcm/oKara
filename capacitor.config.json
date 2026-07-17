@@ -1,0 +1,5 @@
+{
+  "appId": "com.okara.app",
+  "appName": "okara",
+  "webDir": ".output/public"
+}

@@ -13,6 +13,35 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.2.0] - 2026-07-17
+
+### Added
+
+- **Android app (APK)** via Capacitor — install on a tablet and it behaves
+  like the desktop app: full player, pitch scoring, and it **hosts the QR
+  phone remote** through a native LAN HTTP + WebSocket server (an Android port
+  of the Electron remote server, same one-time-token pairing).
+- Android niceties: mic permission prompt on first launch (pitch scoring),
+  screen stays awake while the app is open, branded launcher icons (adaptive)
+  and splash screens generated from the shared icon SVGs.
+- `okara-X.Y.Z.apk` is now attached to every GitHub Release next to the
+  Windows `.exe` files, and is covered by `SHA256SUMS.txt`.
+
+### Changed
+
+- Unified CI into one **Build & Release** workflow (`release.yml`): Windows
+  and Android build in parallel and everything is published on a single
+  release in one step (releases are immutable — files can't be added after
+  publishing). Replaces `build-windows.yml`.
+- Android `versionName`/`versionCode` derive from `package.json`, keeping one
+  source of truth for versioning.
+
+### Fixed
+
+- App icon: the mic stand was invisible in rendered icons (SVG gradient
+  strokes on straight lines have a zero-area bounding box); the icon gradients
+  now use `userSpaceOnUse` so the full microphone renders everywhere.
+
 ## [0.1.0] - 2026-07-17
 
 First tagged release, with the Windows desktop build published to
@@ -35,5 +64,6 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/nrldcm/okara/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nrldcm/okara/releases/tag/v0.1.0

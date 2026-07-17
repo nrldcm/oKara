@@ -1,0 +1,150 @@
+name: Build & Release
+
+# Builds the Windows desktop app (installer + portable .exe) AND the Android
+# APK, then publishes everything on ONE GitHub Release. Releases are
+# immutable, so all files must land in the same publish step — never append
+# to an existing release.
+#
+#  • Push a version tag (e.g. `v0.2.0`) → builds and publishes the Release.
+#  • Manual run (workflow_dispatch) → same by default; the workflow creates
+#    the `v<package.json version>` tag itself. Untick the "publish" input for
+#    a test build (workflow artifacts only, no Release).
+#
+# See RELEASING.md for the full versioned-release process.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish a GitHub Release (tag v<package.json version>)'
+        type: boolean
+        default: true
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # required to create the GitHub Release (and its tag)
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SPA
+        run: npx nuxt generate
+        env:
+          NUXT_APP_BASE_URL: ./
+
+      - name: Install Electron toolchain
+        run: npm install --no-save electron electron-builder
+
+      - name: Build Windows installer + portable
+        run: npx electron-builder --win --publish never
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: okara-windows
+          path: dist-electron/*.exe
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SPA
+        run: npx nuxt generate
+        env:
+          NUXT_APP_BASE_URL: ./
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Build signed release APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK with version
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          mv android/app/build/outputs/apk/release/app-release.apk "okara-${VERSION}.apk"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: okara-android
+          path: okara-*.apk
+          if-no-files-found: error
+
+  publish:
+    needs: [windows, android]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read package.json version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          PKG_VERSION="v${{ steps.pkg.outputs.version }}"
+          TAG="${GITHUB_REF_NAME}"
+          echo "package.json = $PKG_VERSION, tag = $TAG"
+          if [ "$PKG_VERSION" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match package.json version $PKG_VERSION. Bump the version and re-tag."
+            exit 1
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        working-directory: dist
+        run: |
+          sha256sum *.exe *.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # On a manual run the tag v<version> is created by the release action at
+      # the built commit if it doesn't exist yet.
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.pkg.outputs.version }}
+          draft: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.exe
+            dist/*.apk
+            dist/SHA256SUMS.txt

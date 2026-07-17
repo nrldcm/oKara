@@ -14,17 +14,23 @@ The built `.exe` files live on the **Releases** page:
 
 Each release contains:
 
-| File                            | What it is                                          |
-| ------------------------------- | --------------------------------------------------- |
-| `okara-X.Y.Z-setup.exe`         | Installer (NSIS) — installs and adds Start-menu entry |
-| `okara-X.Y.Z-portable.exe`      | Portable — run directly, no install                 |
-| `SHA256SUMS.txt`                | SHA-256 checksums to verify the downloads           |
+| File                            | What it is                                            |
+| ------------------------------- | ----------------------------------------------------- |
+| `okara-X.Y.Z-setup.exe`         | Windows installer (NSIS) — installs, adds Start menu  |
+| `okara-X.Y.Z-portable.exe`      | Windows portable — run directly, no install           |
+| `okara-X.Y.Z.apk`               | Android app (tablet/phone as karaoke host), Android 7+ |
+| `SHA256SUMS.txt`                | SHA-256 checksums to verify the downloads             |
 
-> A **manual** workflow run (Actions → *Build Windows app* → *Run workflow*)
+> A **manual** workflow run (Actions → *Build & Release* → *Run workflow*)
 > also publishes a Release by default: it builds from the chosen branch and
 > creates the tag `v<package.json version>` itself. Untick the **publish**
-> input to get a test build instead — `.exe` files uploaded only as
+> input to get a test build instead — files uploaded only as
 > **workflow artifacts** (Actions run → *Artifacts*), no Release.
+>
+> Releases are **immutable**: all files (exe + apk + checksums) are published
+> together in one step by the `publish` job. Files can never be added to an
+> already-published release — to fix a release, bump the patch version and cut
+> a new one.
 
 ## Cut a release
 
@@ -51,12 +57,13 @@ Each release contains:
    git push origin main --tags
    ```
 
-5. Pushing the tag triggers **`.github/workflows/build-windows.yml`**, which:
+5. Pushing the tag triggers **`.github/workflows/release.yml`**, which:
    - verifies the tag matches `package.json`,
-   - builds the installer + portable `.exe`,
-   - generates `SHA256SUMS.txt`,
-   - publishes a GitHub Release with auto-generated notes and the files
-     attached.
+   - builds the Windows installer + portable `.exe` and the Android `.apk`
+     in parallel,
+   - generates `SHA256SUMS.txt` over all of them,
+   - publishes a GitHub Release with auto-generated notes and all files
+     attached in a single step.
 
 6. Once the workflow is green, edit the Release notes on GitHub if you want to
    lead with the highlights from `CHANGELOG.md`.
@@ -73,12 +80,21 @@ sha256sum -c SHA256SUMS.txt   # run in the folder with the .exe files
 - **MINOR** (`0.1.0` → `0.2.0`) — new features, backward compatible.
 - **MAJOR** (`0.1.0` → `1.0.0`) — breaking changes.
 
-## Regenerating the app icon
+## Android signing
 
-The icon is committed as `build/icon.ico`. To change it, edit `build/icon.svg`
-and regenerate:
+The APK is signed with the committed self-signed keystore
+(`android/okara-release.keystore`) so the signature stays stable and updates
+install over previous versions. The Android `versionName`/`versionCode` are
+derived from `package.json` at build time — nothing to bump separately. If the
+app is ever published to a store, replace the keystore with a private one kept
+out of the repository.
+
+## Regenerating the app icons
+
+Icons are generated from `build/icon.svg` (full tile) and
+`build/icon-foreground.svg` (glyph only, for Android adaptive icons):
 
 ```bash
 npm install         # sharp + png-to-ico are devDependencies
-npm run icons       # rewrites build/icon.ico and build/icons/*.png
+npm run icons       # rewrites build/icon.ico, Android mipmaps, and splash screens
 ```
