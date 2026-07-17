@@ -32,12 +32,10 @@ async function handle(files: File[]) {
 
 function onDrop(e: DragEvent) {
   dragging.value = false
-  const files = Array.from(e.dataTransfer?.files ?? [])
-  handle(files)
+  handle(Array.from(e.dataTransfer?.files ?? []))
 }
 function onPick(e: Event) {
-  const files = Array.from((e.target as HTMLInputElement).files ?? [])
-  handle(files)
+  handle(Array.from((e.target as HTMLInputElement).files ?? []))
   ;(e.target as HTMLInputElement).value = ''
 }
 </script>
@@ -52,7 +50,7 @@ function onPick(e: Event) {
       <strong>UltraStar</strong> na kanta (.txt + audio).
     </p>
 
-    <label class="field">
+    <div class="field">
       <span>Source / brand</span>
       <div class="chips">
         <button
@@ -66,7 +64,7 @@ function onPick(e: Event) {
           <em>{{ s.hint }}</em>
         </button>
       </div>
-    </label>
+    </div>
 
     <div
       class="drop"
@@ -101,27 +99,32 @@ function onPick(e: Event) {
 </template>
 
 <style scoped>
-.imp { padding: 8px 4px 40px; max-width: 760px; }
+.imp { padding: 4px 2px 40px; max-width: 760px; }
 h1 { font-size: 26px; margin: 0 0 8px; }
-.lead { opacity: .7; line-height: 1.55; margin-bottom: 22px; }
-.field { display: block; margin-bottom: 22px; }
-.field > span { display: block; font-size: 13px; opacity: .6; margin-bottom: 10px; }
+.lead { color: var(--text-muted); line-height: 1.55; margin-bottom: 22px; }
+.field { margin-bottom: 22px; }
+.field > span { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
 .chips { display: flex; gap: 10px; flex-wrap: wrap; }
 .chip { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px;
-  border-radius: 12px; border: 1px solid #2a2a44; background: #14142a; color: #fff; cursor: pointer; }
-.chip.active { border-color: #ff5da2; background: #241826; }
-.chip em { font-size: 11px; opacity: .5; font-style: normal; }
-.drop { border: 2px dashed #34345a; border-radius: 18px; padding: 40px 20px; text-align: center;
-  transition: .15s; }
-.drop.over { border-color: #ff5da2; background: rgba(255,93,162,.08); }
+  border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.chip.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.chip em { font-size: 11px; color: var(--text-faint); font-style: normal; }
+.drop { border: 2px dashed var(--border); border-radius: 18px; padding: 40px 20px; text-align: center; transition: .15s; }
+.drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .drop__icon { font-size: 40px; }
-.drop__btns { display: flex; gap: 12px; justify-content: center; margin-top: 12px; }
-.drop__btns button { padding: 10px 20px; border-radius: 999px; border: none; background: #ff5da2; color: #fff;
-  font-weight: 600; cursor: pointer; }
-.drop__btns .ghost { background: #23233a; }
-.status { margin-top: 14px; opacity: .7; }
-.status.ok { color: #4be07a; opacity: 1; }
-.note { margin-top: 30px; background: #14142a; border-radius: 14px; padding: 16px 20px; }
+.drop__btns { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.drop__btns button { padding: 11px 20px; border-radius: 999px; border: none; background: var(--accent);
+  color: var(--on-accent); font-weight: 600; cursor: pointer; }
+.drop__btns .ghost { background: var(--surface-2); color: var(--text); }
+.status { margin-top: 14px; color: var(--text-muted); }
+.status.ok { color: var(--ok); }
+.note { margin-top: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
 .note h3 { margin: 0 0 8px; font-size: 15px; }
-.note ul { margin: 0; padding-left: 18px; line-height: 1.7; opacity: .75; font-size: 14px; }
+.note ul { margin: 0; padding-left: 18px; line-height: 1.7; color: var(--text-muted); font-size: 14px; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 22px; }
+  .drop { padding: 30px 14px; }
+  .drop__btns button { flex: 1; }
+}
 </style>

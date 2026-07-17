@@ -5,23 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>okara remote</title>
 <style>
+  :root {
+    --bg: #0e0e18; --surface: #1c1c33; --border: #2b2b46; --text: #f4f4fb;
+    --muted: #a2a2c0; --faint: #6d6d8a; --accent1: #ff5da2; --accent2: #ff9d5d; --danger: #e0455e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6fb; --surface: #ffffff; --border: #e0e2ee; --text: #191a2e;
+      --muted: #5c5e77; --faint: #9a9cb2; --accent1: #ff4d97; --accent2: #ff8a45; --danger: #d83a54;
+    }
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { background: #0d0d1a; color: #fff; font-family: system-ui, sans-serif; min-height: 100vh;
-    display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 30px 20px; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh;
+    min-height: 100dvh; display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 30px 20px; }
   h1 { font-size: 22px; }
   .now { text-align: center; min-height: 48px; display: flex; flex-direction: column; }
   .now strong { font-size: 20px; }
-  .now span { opacity: .6; }
+  .now span { color: var(--muted); }
   .pad { display: flex; align-items: center; gap: 18px; }
-  .btn { border: none; border-radius: 50%; width: 72px; height: 72px; font-size: 26px; background: #1c1c33;
-    color: #fff; cursor: pointer; }
-  .btn.big { width: 96px; height: 96px; font-size: 36px; background: linear-gradient(135deg, #ff5da2, #ff9d5d); }
+  .btn { border: 1px solid var(--border); border-radius: 50%; width: 72px; height: 72px; font-size: 26px;
+    background: var(--surface); color: var(--text); cursor: pointer; }
+  .btn.big { width: 96px; height: 96px; font-size: 36px; border: none;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; }
   .row { display: flex; gap: 14px; width: 100%; max-width: 340px; }
   .btn.wide { width: 100%; height: 54px; border-radius: 14px; font-size: 16px; }
-  .btn.stop { background: #e0455e; }
+  .btn.stop { background: var(--danger); color: #fff; border: none; }
   .vol { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 340px; }
-  .vol input { flex: 1; }
-  .status { opacity: .5; font-size: 13px; margin-top: auto; }
+  .vol input { flex: 1; accent-color: var(--accent1); }
+  .status { color: var(--faint); font-size: 13px; margin-top: auto; }
 </style>
 </head>
 <body>

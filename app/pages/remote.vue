@@ -58,21 +58,21 @@ function onVolume(e: Event) {
 </template>
 
 <style scoped>
-.remote-page { min-height: 100vh; background: #0d0d1a; color: #fff; display: flex; flex-direction: column;
-  align-items: center; gap: 22px; padding: 30px 20px; }
+.remote-page { min-height: 100vh; min-height: 100dvh; background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 30px 20px; }
 h1 { font-size: 22px; margin: 0; }
 .now { text-align: center; display: flex; flex-direction: column; min-height: 48px; }
 .now strong { font-size: 20px; }
-.now span { opacity: .6; }
-.now.idle { opacity: .5; }
+.now span { color: var(--text-muted); }
+.now.idle { color: var(--text-faint); }
 .pad { display: flex; align-items: center; gap: 18px; }
-.btn { border: none; border-radius: 50%; width: 72px; height: 72px; font-size: 26px; background: #1c1c33;
-  color: #fff; cursor: pointer; }
-.btn.big { width: 96px; height: 96px; font-size: 36px; background: linear-gradient(135deg, #ff5da2, #ff9d5d); }
+.btn { border: 1px solid var(--border); border-radius: 50%; width: 72px; height: 72px; font-size: 26px;
+  background: var(--surface); color: var(--text); cursor: pointer; }
+.btn.big { width: 96px; height: 96px; font-size: 36px; background: var(--accent-grad); color: #fff; border: none; }
 .row { display: flex; gap: 14px; width: 100%; max-width: 340px; }
 .btn.wide { width: 100%; height: 54px; border-radius: 14px; font-size: 16px; }
-.btn.stop { background: #e0455e; }
+.btn.stop { background: var(--danger); color: #fff; border: none; }
 .vol { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 340px; }
-.vol input { flex: 1; }
-.status { opacity: .5; font-size: 13px; margin-top: auto; }
+.vol input { flex: 1; accent-color: var(--accent); }
+.status { color: var(--text-faint); font-size: 13px; margin-top: auto; }
 </style>

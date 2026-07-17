@@ -1,14 +1,19 @@
 <script setup lang="ts">
 const { available, pairing, connected, init } = useRemote()
+const { theme } = useTheme()
 const canvas = ref<HTMLCanvasElement | null>(null)
 
 async function renderQr() {
   if (!pairing.value || !canvas.value) return
   const QR = (await import('qrcode')).default
+  const dark = theme.value === 'dark'
   await QR.toCanvas(canvas.value, pairing.value.url, {
-    width: 220,
+    width: 200,
     margin: 1,
-    color: { dark: '#0d0d1a', light: '#ffffff' },
+    color: {
+      dark: dark ? '#0e0e18' : '#191a2e',
+      light: '#ffffff',
+    },
   })
 }
 
@@ -17,7 +22,7 @@ onMounted(async () => {
   await nextTick()
   await renderQr()
 })
-watch(pairing, renderQr)
+watch([pairing, theme], renderQr)
 </script>
 
 <template>
@@ -29,10 +34,12 @@ watch(pairing, renderQr)
     </p>
 
     <div v-if="available" class="pair">
-      <canvas ref="canvas" class="qr" />
+      <div class="qr-wrap"><canvas ref="canvas" class="qr" /></div>
       <div class="pair__info">
-        <p class="mode">
-          <span class="badge" :class="pairing?.mode">{{ pairing?.mode === 'lan' ? 'LAN pairing' : 'Same-device (demo)' }}</span>
+        <p>
+          <span class="badge" :class="pairing?.mode">
+            {{ pairing?.mode === 'lan' ? 'LAN pairing' : 'Same-device (demo)' }}
+          </span>
         </p>
         <p class="url">{{ pairing?.url }}</p>
         <p class="conn">
@@ -53,19 +60,23 @@ watch(pairing, renderQr)
 </template>
 
 <style scoped>
-.remote { background: #14142a; border-radius: 14px; padding: 18px 20px; }
-.remote h3 { margin: 0 0 6px; font-size: 16px; }
-.desc { opacity: .65; font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
+.remote h3 { margin: 0 0 6px; font-size: 15px; }
+.desc { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
 .pair { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
-.qr { border-radius: 12px; background: #fff; padding: 8px; }
+.qr-wrap { background: #fff; border-radius: 12px; padding: 8px; line-height: 0; }
+.qr { border-radius: 6px; }
 .pair__info { flex: 1; min-width: 200px; }
-.badge { font-size: 11px; padding: 3px 10px; border-radius: 999px; }
-.badge.lan { background: #4be07a; color: #052; }
-.badge.local { background: #34345a; }
-.url { font-family: monospace; font-size: 12px; opacity: .7; word-break: break-all; margin: 10px 0; }
-.conn { display: flex; align-items: center; gap: 8px; font-size: 13px; opacity: .8; }
-.conn .dot { width: 9px; height: 9px; border-radius: 50%; background: #555; }
-.conn .dot.on { background: #4be07a; box-shadow: 0 0 8px #4be07a; }
-.hint { font-size: 12px; opacity: .5; margin-top: 10px; line-height: 1.5; }
-.unavailable { opacity: .5; font-size: 14px; }
+.badge { font-size: 11px; padding: 3px 10px; border-radius: 999px; color: #052; }
+.badge.lan { background: var(--ok); color: #042; }
+.badge.local { background: var(--surface-2); color: var(--text); }
+.url { font-family: monospace; font-size: 12px; color: var(--text-muted); word-break: break-all; margin: 10px 0; }
+.conn { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+.conn .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); }
+.conn .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.hint { font-size: 12px; color: var(--text-faint); margin-top: 10px; line-height: 1.5; }
+.unavailable { color: var(--text-faint); font-size: 14px; }
+
+@media (max-width: 560px) {
+  .pair { justify-content: center; }
+}
 </style>

@@ -10,8 +10,6 @@ const mediaEl = ref<HTMLMediaElement | null>(null)
 const isVideo = computed(() => props.song.kind === 'video')
 const channel = ref<'stereo' | 'left' | 'right'>(settings.value.voiceChannel)
 
-// Route one stereo channel to both speakers (PH videoke discs put the guide
-// vocal on one channel and the minus-one on the other).
 let ctx: AudioContext | null = null
 let source: MediaElementAudioSourceNode | null = null
 let splitter: ChannelSplitterNode | null = null
@@ -88,23 +86,10 @@ const channelLabels: Record<string, string> = {
     </header>
 
     <div class="stage">
-      <video
-        v-if="isVideo"
-        ref="mediaEl"
-        :src="props.song.videoUrl"
-        controls
-        @play="onPlay"
-        @pause="onPause"
-      />
+      <video v-if="isVideo" ref="mediaEl" :src="props.song.videoUrl" controls @play="onPlay" @pause="onPause" />
       <div v-else class="audio-stage">
         <div class="disc">🎵</div>
-        <audio
-          ref="mediaEl"
-          :src="props.song.audioUrl"
-          controls
-          @play="onPlay"
-          @pause="onPause"
-        />
+        <audio ref="mediaEl" :src="props.song.audioUrl" controls @play="onPlay" @pause="onPause" />
       </div>
     </div>
 
@@ -128,22 +113,32 @@ const channelLabels: Record<string, string> = {
 </template>
 
 <style scoped>
-.mplayer { display: flex; flex-direction: column; height: 100%; background: #0d0d1a; }
-.mplayer__bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; }
-.mplayer__title { display: flex; flex-direction: column; line-height: 1.2; }
-.mplayer__title span { font-size: 13px; opacity: .6; }
+.mplayer { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
+.mplayer__bar { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+.mplayer__title { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.mplayer__title strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mplayer__title span { font-size: 13px; color: var(--text-muted); }
 .stage { flex: 1; margin: 0 12px; border-radius: 16px; overflow: hidden; background: #000;
   display: flex; align-items: center; justify-content: center; }
 .stage video { width: 100%; height: 100%; object-fit: contain; }
-.audio-stage { display: flex; flex-direction: column; align-items: center; gap: 24px; }
-.disc { font-size: 90px; }
+.audio-stage { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 16px;
+  background: radial-gradient(120% 100% at 50% 0%, var(--stage-1) 0%, var(--stage-2) 70%); width: 100%; height: 100%;
+  justify-content: center; }
+.disc { font-size: 84px; }
+.audio-stage audio { width: 100%; max-width: 420px; }
 .mplayer__controls { padding: 16px; }
 .voice { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.label { font-size: 14px; opacity: .8; }
-.segmented { display: inline-flex; background: #1a1a2e; border-radius: 999px; padding: 4px; }
-.segmented button { border: none; background: none; color: #fff; padding: 8px 16px; border-radius: 999px;
+.label { font-size: 14px; color: var(--text-muted); }
+.segmented { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px; }
+.segmented button { border: none; background: none; color: var(--text); padding: 8px 16px; border-radius: 999px;
   cursor: pointer; font-size: 13px; opacity: .7; }
-.segmented button.active { background: #ff5da2; opacity: 1; font-weight: 600; }
-.tip { font-size: 12px; opacity: .5; margin-top: 10px; }
-.icon-btn { background: none; border: none; color: #fff; opacity: .8; cursor: pointer; font-size: 15px; }
+.segmented button.active { background: var(--accent); color: var(--on-accent); opacity: 1; font-weight: 600; }
+.tip { font-size: 12px; color: var(--text-faint); margin-top: 10px; }
+.icon-btn { background: none; border: none; color: var(--text); cursor: pointer; font-size: 15px; }
+
+@media (max-width: 560px) {
+  .segmented { width: 100%; display: flex; }
+  .segmented button { flex: 1; padding: 9px 6px; }
+  .disc { font-size: 64px; }
+}
 </style>

@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import type { RuntimeSong } from '~/composables/useLibrary'
 import { beatToMs, parseUltraStar, type Line, type Note } from '~/utils/ultrastar'
-import {
-  midiToFreq, pitchClassDistance, relativePitchToMidi,
-} from '~/utils/pitch'
+import { midiToFreq, pitchClassDistance, relativePitchToMidi } from '~/utils/pitch'
 
 const props = defineProps<{ song: RuntimeSong }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { settings } = useSettings()
+const { theme } = useTheme()
 const pitch = usePitch()
 const bus = useRemoteBus()
 const volume = ref(1)
@@ -61,19 +60,15 @@ const totalWeight = allNotes.reduce((s, n) => s + n.weight, 0) || 1
 const songEndMs = (allNotes.at(-1)?.endMs ?? 0) + 1500
 const MAX_SCORE = 10000
 
-// ---- transport state ----
 const canvas = ref<HTMLCanvasElement | null>(null)
 const audioEl = ref<HTMLAudioElement | null>(null)
 const playing = ref(false)
 const finished = ref(false)
 const score = ref(0)
-const combo = ref(0)
-const feedback = ref<{ text: string; kind: string } | null>(null)
 
 let raf = 0
 let lastFrame = 0
 
-// synth clock
 let synthCtx: AudioContext | null = null
 let synthStart = 0
 let pausedMs = 0
@@ -98,10 +93,10 @@ function scheduleSynth(fromMs: number) {
     const gain = synthCtx.createGain()
     osc.type = 'triangle'
     osc.frequency.value = midiToFreq(n.midi)
-    const peak = 0.25 * volume.value
+    const peak = Math.max(0.0002, 0.25 * volume.value)
     gain.gain.setValueAtTime(0.0001, startAt)
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), startAt + 0.02)
-    gain.gain.setValueAtTime(Math.max(0.0002, peak), Math.max(startAt + 0.02, endAt - 0.05))
+    gain.gain.exponentialRampToValueAtTime(peak, startAt + 0.02)
+    gain.gain.setValueAtTime(peak, Math.max(startAt + 0.02, endAt - 0.05))
     gain.gain.exponentialRampToValueAtTime(0.0001, endAt)
     osc.connect(gain).connect(synthCtx.destination)
     osc.start(startAt)
@@ -121,30 +116,22 @@ async function play() {
   if (finished.value) restart()
   if (!pitch.active.value) await pitch.start(settings.value.micDeviceId || undefined)
   playing.value = true
-  if (isSynth) {
-    scheduleSynth(pausedMs)
-  } else {
-    await audioEl.value?.play().catch(() => {})
-  }
+  if (isSynth) scheduleSynth(pausedMs)
+  else await audioEl.value?.play().catch(() => {})
   lastFrame = performance.now()
   loop()
 }
 
 function pause() {
   playing.value = false
-  if (isSynth) {
-    pausedMs = nowMs()
-    stopSynth()
-  } else {
-    audioEl.value?.pause()
-  }
+  if (isSynth) { pausedMs = nowMs(); stopSynth() }
+  else audioEl.value?.pause()
   cancelAnimationFrame(raf)
 }
 
 function restart() {
   finished.value = false
   score.value = 0
-  combo.value = 0
   pausedMs = 0
   allNotes.forEach((n) => { n.hit = 0 })
   if (isSynth) stopSynth()
@@ -172,7 +159,6 @@ watch(() => bus.command.value.seq, () => {
   }
 })
 
-// ---- main loop ----
 function loop() {
   const t = nowMs()
   const frameTime = performance.now()
@@ -183,10 +169,7 @@ function loop() {
   updateScore(t, dt, sung)
   draw(t, sung)
 
-  if (t >= songEndMs) {
-    finish()
-    return
-  }
+  if (t >= songEndMs) { finish(); return }
   if (playing.value) raf = requestAnimationFrame(loop)
 }
 
@@ -196,9 +179,7 @@ function updateScore(t: number, dt: number, sung: number | null) {
     const dist = pitchClassDistance(sung, active.midi)
     const tol = settings.value.scoringTolerance
     const quality = dist === 0 ? 1 : dist <= tol ? 0.5 : 0
-    if (quality > 0) {
-      active.hit = Math.min(active.durMs, active.hit + dt * quality)
-    }
+    if (quality > 0) active.hit = Math.min(active.durMs, active.hit + dt * quality)
   }
   let sum = 0
   for (const n of allNotes) sum += Math.min(1, n.hit / n.durMs) * n.weight
@@ -210,10 +191,30 @@ function finish() {
   finished.value = true
   if (isSynth) stopSynth()
   cancelAnimationFrame(raf)
-  drawFinal()
 }
 
-// ---- drawing ----
+interface Palette {
+  text: string; muted: string; faint: string; accent: string; gold: string; noteBg: string; info: string
+}
+let palette: Palette = defaultPalette()
+function defaultPalette(): Palette {
+  return { text: '#fff', muted: '#aaa', faint: '#777', accent: '#ff5da2', gold: '#ffd54a', noteBg: '#2a2a44', info: '#4ad7ff' }
+}
+function readPalette(): Palette {
+  const s = getComputedStyle(document.documentElement)
+  const g = (n: string, fb: string) => s.getPropertyValue(n).trim() || fb
+  return {
+    text: g('--text', '#fff'),
+    muted: g('--text-muted', '#aaa'),
+    faint: g('--text-faint', '#777'),
+    accent: g('--accent', '#ff5da2'),
+    gold: g('--gold', '#ffd54a'),
+    noteBg: g('--note-bg', '#2a2a44'),
+    info: g('--info', '#4ad7ff'),
+  }
+}
+watch(theme, () => { palette = readPalette(); draw(nowMs(), pitch.currentMidi.value) })
+
 function currentLineAt(t: number): { line: TimedLine | null; next: TimedLine | null } {
   let line: TimedLine | null = null
   let next: TimedLine | null = null
@@ -227,24 +228,23 @@ function currentLineAt(t: number): { line: TimedLine | null; next: TimedLine | n
 
 function mapY(midi: number, min: number, max: number, top: number, h: number): number {
   const range = Math.max(4, max - min)
-  const norm = (midi - min) / range
-  return top + h - norm * h
+  return top + h - ((midi - min) / range) * h
 }
 
 function draw(t: number, sung: number | null) {
   const cv = canvas.value
   if (!cv) return
   const ctx = cv.getContext('2d')!
-  const W = cv.width
-  const H = cv.height
+  const W = cv.clientWidth
+  const H = cv.clientHeight
   ctx.clearRect(0, 0, W, H)
 
   const { line, next } = currentLineAt(t)
 
-  // ----- pitch view (top 55%) -----
-  const padX = 24
-  const top = 20
+  const padX = Math.max(14, W * 0.04)
+  const top = 18
   const zoneH = H * 0.5
+
   if (line && line.timed.length) {
     const midis = line.timed.map((n) => n.midi)
     const minM = Math.min(...midis) - 3
@@ -253,7 +253,6 @@ function draw(t: number, sung: number | null) {
     const hi = Math.max(line.endMs, lo + 1)
     const mapX = (ms: number) => padX + ((ms - lo) / (hi - lo)) * (W - padX * 2)
 
-    // faint pitch grid
     for (const n of line.timed) {
       const x = mapX(n.startMs)
       const w = Math.max(6, mapX(n.endMs) - x)
@@ -261,41 +260,38 @@ function draw(t: number, sung: number | null) {
       const barH = 12
       const done = n.hit / n.durMs
       const isActive = t >= n.startMs && t < n.endMs
-      ctx.fillStyle = '#2a2a44'
-      roundRect(ctx, x, y - barH / 2, w, barH, 6)
-      ctx.fill()
-      // filled portion by score
-      const grad = n.type.includes('golden') ? '#ffd54a' : '#4ad7ff'
-      ctx.fillStyle = grad
-      roundRect(ctx, x, y - barH / 2, w * Math.min(1, done), barH, 6)
-      ctx.fill()
+      ctx.fillStyle = palette.noteBg
+      roundRect(ctx, x, y - barH / 2, w, barH, 6); ctx.fill()
+      ctx.fillStyle = n.type.includes('golden') ? palette.gold : palette.info
+      roundRect(ctx, x, y - barH / 2, w * Math.min(1, done), barH, 6); ctx.fill()
       if (isActive) {
-        ctx.strokeStyle = '#ffffff'
+        ctx.strokeStyle = palette.text
         ctx.lineWidth = 2
-        roundRect(ctx, x, y - barH / 2, w, barH, 6)
-        ctx.stroke()
+        roundRect(ctx, x, y - barH / 2, w, barH, 6); ctx.stroke()
       }
     }
-    // playhead
+
     const px = mapX(Math.min(hi, Math.max(lo, t)))
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+    ctx.strokeStyle = palette.faint
     ctx.lineWidth = 2
     ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, top + zoneH - 30); ctx.stroke()
 
-    // sung pitch dot (octave-folded to nearest target)
     if (sung != null) {
       let m = sung
       while (m < minM - 6) m += 12
       while (m > maxM + 6) m -= 12
       const y = mapY(m, minM, maxM, top, zoneH - 40)
-      ctx.fillStyle = '#ff5da2'
-      ctx.beginPath(); ctx.arc(px, y, 8, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = 'rgba(255,93,162,0.25)'
+      ctx.save()
+      ctx.globalAlpha = 0.25
+      ctx.fillStyle = palette.accent
       ctx.beginPath(); ctx.arc(px, y, 16, 0, Math.PI * 2); ctx.fill()
+      ctx.globalAlpha = 1
+      ctx.fillStyle = palette.accent
+      ctx.beginPath(); ctx.arc(px, y, 8, 0, Math.PI * 2); ctx.fill()
+      ctx.restore()
     }
   }
 
-  // ----- lyrics (bottom) -----
   drawLyrics(ctx, W, H, line, next, t)
 }
 
@@ -304,12 +300,11 @@ function drawLyrics(
   line: TimedLine | null, next: TimedLine | null, t: number,
 ) {
   const baseY = H * 0.72
-  ctx.textAlign = 'center'
+  const fs = Math.max(20, Math.min(40, W / 16))
   ctx.textBaseline = 'middle'
 
   if (line) {
-    const font = 'bold 34px system-ui, sans-serif'
-    ctx.font = font
+    ctx.font = `bold ${fs}px system-ui, sans-serif`
     const widths = line.timed.map((n) => ctx.measureText(n.text).width)
     const total = widths.reduce((a, b) => a + b, 0)
     let x = W / 2 - total / 2
@@ -317,16 +312,16 @@ function drawLyrics(
       const w = widths[i]
       const past = t >= n.endMs
       const active = t >= n.startMs && t < n.endMs
-      ctx.fillStyle = past ? '#ffd54a' : active ? '#ffffff' : 'rgba(255,255,255,0.45)'
+      ctx.fillStyle = past ? palette.gold : active ? palette.text : palette.muted
       ctx.textAlign = 'left'
       ctx.fillText(n.text, x, baseY)
       if (active) {
         const p = (t - n.startMs) / n.durMs
-        ctx.fillStyle = '#ffd54a'
         ctx.save()
         ctx.beginPath()
-        ctx.rect(x, baseY - 24, w * Math.min(1, p), 48)
+        ctx.rect(x, baseY - fs, w * Math.min(1, p), fs * 2)
         ctx.clip()
+        ctx.fillStyle = palette.gold
         ctx.fillText(n.text, x, baseY)
         ctx.restore()
       }
@@ -335,18 +330,11 @@ function drawLyrics(
   }
 
   if (next) {
-    ctx.font = '22px system-ui, sans-serif'
-    ctx.fillStyle = 'rgba(255,255,255,0.35)'
+    ctx.font = `${fs * 0.62}px system-ui, sans-serif`
+    ctx.fillStyle = palette.faint
     ctx.textAlign = 'center'
-    ctx.fillText(next.timed.map((n) => n.text).join(''), W / 2, H * 0.72 + 46)
+    ctx.fillText(next.timed.map((n) => n.text).join(''), W / 2, baseY + fs * 1.35)
   }
-}
-
-function drawFinal() {
-  const cv = canvas.value
-  if (!cv) return
-  const ctx = cv.getContext('2d')!
-  ctx.clearRect(0, 0, cv.width, cv.height)
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -360,7 +348,6 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
-// ---- sizing ----
 function resize() {
   const cv = canvas.value
   if (!cv) return
@@ -370,8 +357,6 @@ function resize() {
   cv.height = parent.clientHeight * dpr
   const ctx = cv.getContext('2d')!
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  cv.width = parent.clientWidth * dpr
-  cv.height = parent.clientHeight * dpr
   draw(nowMs(), pitch.currentMidi.value)
 }
 
@@ -387,6 +372,7 @@ const rating = computed(() => {
 })
 
 onMounted(() => {
+  palette = readPalette()
   resize()
   window.addEventListener('resize', resize)
 })
@@ -436,47 +422,48 @@ onBeforeUnmount(() => {
       <button class="ctrl ghost" @click="restart">↻ Restart</button>
       <div class="mic" :class="{ live: pitch.active.value }">
         <span class="dot" /> Mic {{ pitch.active.value ? 'on' : 'off' }}
-        <template v-if="pitch.currentMidi.value != null"> · singing</template>
       </div>
     </footer>
 
-    <audio
-      v-if="!isSynth"
-      ref="audioEl"
-      :src="props.song.audioUrl"
-      preload="auto"
-      @ended="finish"
-    />
+    <audio v-if="!isSynth" ref="audioEl" :src="props.song.audioUrl" preload="auto" @ended="finish" />
   </div>
 </template>
 
 <style scoped>
-.player { display: flex; flex-direction: column; height: 100%; background: #0d0d1a; }
-.player__bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; }
-.player__title { flex: 1; display: flex; flex-direction: column; line-height: 1.2; }
-.player__title span { font-size: 13px; opacity: .6; }
-.player__score { font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 800; color: #ffd54a; }
+.player { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
+.player__bar { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+.player__title { flex: 1; display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.player__title strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player__title span { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player__score { font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 800; color: var(--gold); flex-shrink: 0; }
 .stage { position: relative; flex: 1; margin: 0 12px; border-radius: 16px; overflow: hidden;
-  background: radial-gradient(120% 100% at 50% 0%, #1a1a33 0%, #0d0d1a 70%); }
+  background: radial-gradient(120% 100% at 50% 0%, var(--stage-1) 0%, var(--stage-2) 70%); }
 .stage canvas { width: 100%; height: 100%; display: block; }
-.overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 14px; background: rgba(10,10,22,.55); }
-.big-btn { font-size: 22px; font-weight: 700; padding: 16px 34px; border: none; border-radius: 999px;
-  background: linear-gradient(135deg, #ff5da2, #ff9d5d); color: #fff; cursor: pointer; }
+.overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 14px; background: color-mix(in srgb, var(--bg) 55%, transparent); padding: 16px; }
+.big-btn { font-size: 20px; font-weight: 700; padding: 15px 32px; border: none; border-radius: 999px;
+  background: var(--accent-grad); color: #fff; cursor: pointer; }
 .big-btn:hover { filter: brightness(1.08); }
-.hint { opacity: .65; font-size: 14px; }
-.result h2 { font-size: 30px; margin: 0; }
-.stars span { font-size: 40px; color: #333; }
-.stars span.on { color: #ffd54a; }
-.final-score { font-size: 34px; font-weight: 800; color: #ffd54a; }
-.final-score small { font-size: 16px; opacity: .5; color: #fff; }
-.result-actions { display: flex; gap: 12px; }
-.player__controls { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
-.ctrl { padding: 10px 20px; border-radius: 999px; border: none; font-weight: 600; cursor: pointer;
-  background: #ff5da2; color: #fff; }
-.ctrl.ghost { background: #23233a; color: #fff; }
-.mic { margin-left: auto; font-size: 13px; opacity: .6; display: flex; align-items: center; gap: 8px; }
-.mic .dot { width: 9px; height: 9px; border-radius: 50%; background: #555; }
-.mic.live .dot { background: #4be07a; box-shadow: 0 0 8px #4be07a; }
-.icon-btn { background: none; border: none; color: #fff; opacity: .8; cursor: pointer; font-size: 15px; }
+.hint { color: var(--text-muted); font-size: 14px; text-align: center; }
+.result h2 { font-size: 28px; margin: 0; }
+.stars span { font-size: 38px; color: var(--border); }
+.stars span.on { color: var(--gold); }
+.final-score { font-size: 32px; font-weight: 800; color: var(--gold); }
+.final-score small { font-size: 16px; color: var(--text-muted); }
+.result-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.player__controls { display: flex; align-items: center; gap: 12px; padding: 14px 16px; flex-wrap: wrap; }
+.ctrl { padding: 11px 22px; border-radius: 999px; border: none; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: var(--on-accent); }
+.ctrl.ghost { background: var(--surface-2); color: var(--text); }
+.mic { margin-left: auto; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.mic .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); }
+.mic.live .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.icon-btn { background: none; border: none; color: var(--text); cursor: pointer; font-size: 15px; }
+
+@media (max-width: 560px) {
+  .player__score { font-size: 22px; }
+  .big-btn { font-size: 18px; padding: 14px 26px; }
+  .ctrl { flex: 1; }
+  .mic { width: 100%; margin-left: 0; justify-content: center; }
+}
 </style>
