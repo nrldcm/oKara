@@ -10,14 +10,44 @@ const confirmClear = ref(false)
 const libDir = ref('')
 const libCanChoose = ref(false)
 const hasLibFolder = ref(false)
+const hasBtRoute = ref(false)
+const btAvailable = ref(false)
+const btOn = ref(false)
+const btError = ref('')
 
 async function refreshMics() {
   try { await navigator.mediaDevices.getUserMedia({ audio: true }) } catch { /* */ }
   mics.value = await listMicrophones()
 }
 
+async function refreshBt() {
+  const route = (window as any).okara?.micRoute
+  if (!route) return
+  hasBtRoute.value = true
+  try {
+    const st = await route.status()
+    btAvailable.value = !!st.available
+    btOn.value = !!st.on
+  } catch { /* ignore */ }
+}
+
+async function toggleBt(e: Event) {
+  const want = (e.target as HTMLInputElement).checked
+  btError.value = ''
+  try {
+    const st = await (window as any).okara.micRoute.setBluetooth(want)
+    btOn.value = !!st.on
+    btAvailable.value = !!st.available
+  } catch {
+    btOn.value = false
+    ;(e.target as HTMLInputElement).checked = false
+    btError.value = 'No Bluetooth mic found — pair the headset/karaoke mic in Android Bluetooth settings first.'
+  }
+}
+
 onMounted(async () => {
   refreshMics()
+  refreshBt()
   hasLibFolder.value = libraryFolderAvailable()
   if (hasLibFolder.value) {
     try {
@@ -56,6 +86,21 @@ function doClear() {
         </select>
         <button class="mini" @click="refreshMics">Refresh</button>
       </div>
+    </div>
+
+    <div v-if="hasBtRoute" class="block">
+      <h3>Bluetooth microphone</h3>
+      <label class="switch">
+        <input type="checkbox" :checked="btOn" @change="toggleBt" />
+        Use a Bluetooth mic (headset / karaoke mic)
+      </label>
+      <p class="muted small">
+        {{ btAvailable ? 'A Bluetooth mic is connected and ready.'
+          : 'Pair the mic in Android Bluetooth settings, then turn this on.' }}
+        Bluetooth mics use the voice link, so capture quality is call-grade —
+        good enough for scoring and vocal FX. Tap "Refresh" above after pairing.
+      </p>
+      <p v-if="btError" class="bt-err">{{ btError }}</p>
     </div>
 
     <div class="block">
@@ -146,6 +191,7 @@ h1 { font-size: 26px; margin: 0 0 24px; }
 .muted.small { font-size: 12px; color: var(--text-faint); margin: 10px 0 0; }
 .dir { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
   padding: 10px 14px; font-size: 13px; word-break: break-all; }
+.bt-err { color: var(--danger); font-size: 13px; margin: 10px 0 0; }
 .del { padding: 10px 18px; border-radius: 999px; border: none; background: var(--danger); color: #fff; cursor: pointer; }
 .confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .about { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 30px; }

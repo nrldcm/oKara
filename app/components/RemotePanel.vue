@@ -1,7 +1,10 @@
 <script setup lang="ts">
-const { available, pairing, connected, init } = useRemote()
+const { available, pairing, connected, init, refreshPairing } = useRemote()
 const { theme } = useTheme()
 const canvas = ref<HTMLCanvasElement | null>(null)
+let poll: ReturnType<typeof setInterval> | null = null
+
+const offline = computed(() => pairing.value?.hasNetwork === false)
 
 async function renderQr() {
   if (!pairing.value || !canvas.value) return
@@ -19,9 +22,14 @@ async function renderQr() {
 
 onMounted(async () => {
   await init()
+  await refreshPairing()
   await nextTick()
   await renderQr()
+  // Hotspot toggles fire no network callback — keep re-checking while
+  // offline so the QR fixes itself the moment the hotspot/Wi-Fi is up.
+  poll = setInterval(() => { if (offline.value) refreshPairing() }, 5000)
 })
+onBeforeUnmount(() => { if (poll) clearInterval(poll) })
 watch([pairing, theme], renderQr)
 </script>
 
@@ -33,7 +41,21 @@ watch([pairing, theme], renderQr)
       next, previous, stop, and volume, just like a real karaoke remote.
     </p>
 
-    <div v-if="available" class="pair">
+    <div v-if="available && offline" class="offline">
+      <p class="offline__title"><i class="bi bi-wifi-off" /> No Wi-Fi network</p>
+      <p class="offline__body">
+        The phone remote needs the phone and this device on the same network —
+        internet is <strong>not</strong> required. Either:
+      </p>
+      <ul class="offline__list">
+        <li>Turn on <strong>Wi-Fi</strong> and join your network, or</li>
+        <li>Turn on this device's <strong>Hotspot</strong> and connect the phone
+          to it (works anywhere, no router needed).</li>
+      </ul>
+      <button class="retry" @click="refreshPairing()"><i class="bi bi-arrow-clockwise" /> Check again</button>
+    </div>
+
+    <div v-else-if="available" class="pair">
       <div class="qr-wrap"><canvas ref="canvas" class="qr" /></div>
       <div class="pair__info">
         <p>
@@ -52,6 +74,7 @@ watch([pairing, theme], renderQr)
         </p>
         <p v-else class="hint">
           Secure: needs a one-time token from the QR, and the connection is LAN-only.
+          No internet? Use this device's Hotspot — connect the phone to it and scan again.
         </p>
       </div>
     </div>
@@ -75,6 +98,12 @@ watch([pairing, theme], renderQr)
 .conn .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 .hint { font-size: 12px; color: var(--text-faint); margin-top: 10px; line-height: 1.5; }
 .unavailable { color: var(--text-faint); font-size: 14px; }
+.offline { background: var(--bg); border: 1px dashed var(--border); border-radius: 14px; padding: 16px 18px; }
+.offline__title { font-weight: 700; display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.offline__body { color: var(--text-muted); font-size: 14px; margin: 0 0 8px; line-height: 1.5; }
+.offline__list { margin: 0 0 14px; padding-left: 20px; color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+.retry { padding: 9px 16px; border-radius: 999px; border: none; background: var(--accent); color: var(--on-accent);
+  font-weight: 600; cursor: pointer; }
 
 @media (max-width: 560px) {
   .pair { justify-content: center; }

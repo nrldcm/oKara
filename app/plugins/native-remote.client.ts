@@ -1,10 +1,16 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 
 interface RemoteServerPlugin {
-  getPairing(): Promise<{ url: string; token: string }>
+  getPairing(): Promise<{ url: string; token: string; hasNetwork: boolean }>
   sendState(options: { state: unknown }): Promise<void>
   addListener(event: 'command', cb: (cmd: { action: string; value?: unknown }) => void): Promise<unknown>
   addListener(event: 'remoteCount', cb: (data: { count: number }) => void): Promise<unknown>
+  addListener(event: 'networkChanged', cb: () => void): Promise<unknown>
+}
+
+interface MicRoutePlugin {
+  status(): Promise<{ available: boolean; on: boolean }>
+  setBluetooth(options: { on: boolean }): Promise<{ available: boolean; on: boolean }>
 }
 
 interface LibraryEntry { name: string; path: string }
@@ -28,6 +34,7 @@ export default defineNuxtPlugin(() => {
 
   const remote = registerPlugin<RemoteServerPlugin>('RemoteServer')
   const library = registerPlugin<LibraryNativePlugin>('Library')
+  const micRoute = registerPlugin<MicRoutePlugin>('MicRoute')
 
   ;(window as any).okara = {
     isElectron: true,
@@ -38,8 +45,16 @@ export default defineNuxtPlugin(() => {
     onRemoteCount: (cb: (n: number) => void) => {
       remote.addListener('remoteCount', (data) => cb(data.count))
     },
+    onNetworkChanged: (cb: () => void) => {
+      remote.addListener('networkChanged', cb)
+    },
     sendState: (state: unknown) => {
       remote.sendState({ state })
+    },
+
+    micRoute: {
+      status: () => micRoute.status(),
+      setBluetooth: (on: boolean) => micRoute.setBluetooth({ on }),
     },
 
     toMediaUrl: (path: string) => Capacitor.convertFileSrc(path),

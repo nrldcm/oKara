@@ -76,7 +76,13 @@ public class RemoteServer extends NanoWSD {
     }
 
     public String getUrl() {
-        return "http://" + lanIp() + ":" + getListeningPort() + "/?t=" + token;
+        String ip = lanIp();
+        return "http://" + (ip != null ? ip : "127.0.0.1") + ":" + getListeningPort() + "/?t=" + token;
+    }
+
+    /** True when a phone could actually reach this device (Wi-Fi or hotspot up). */
+    public boolean hasNetwork() {
+        return lanIp() != null;
     }
 
     public void broadcastState(String stateJson) {
@@ -106,20 +112,29 @@ public class RemoteServer extends NanoWSD {
         }
     }
 
+    /**
+     * Reachable IPv4 of this device on Wi-Fi OR its own hotspot (interface
+     * names like ap0/swlan0 — hotspot mode makes the remote work with no
+     * router/internet at all). Null when there is no usable network.
+     */
     private static String lanIp() {
+        String fallback = null;
         try {
             for (NetworkInterface iface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 if (!iface.isUp() || iface.isLoopback()) continue;
+                String name = iface.getName() == null ? "" : iface.getName();
+                boolean preferred = name.startsWith("wlan") || name.startsWith("ap") || name.startsWith("swlan");
                 for (InetAddress addr : Collections.list(iface.getInetAddresses())) {
                     if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && addr.isSiteLocalAddress()) {
-                        return addr.getHostAddress();
+                        if (preferred) return addr.getHostAddress();
+                        if (fallback == null) fallback = addr.getHostAddress();
                     }
                 }
             }
         } catch (Exception ignored) {
-            // fall through to loopback
+            // treated as no network
         }
-        return "127.0.0.1";
+        return fallback;
     }
 
     @Override

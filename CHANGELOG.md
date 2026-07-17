@@ -13,6 +13,22 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.4.0] - 2026-07-17
+
+### Added
+
+- **Works without Wi-Fi (Android)** — the remote's pairing screen now detects
+  when there's no network and walks you through the fix: turn on Wi-Fi, or
+  enable the device's **Hotspot** and connect the phone to it (no router or
+  internet needed — direct tablet↔phone). The QR auto-refreshes when the
+  network changes (live callback for Wi-Fi, background re-check for hotspot),
+  plus a manual "Check again" button.
+- **Bluetooth microphone support (Android)** — new Settings toggle routes the
+  mic input to a paired Bluetooth headset / karaoke mic (native audio routing:
+  `setCommunicationDevice` on Android 12+, Bluetooth SCO below). Note:
+  Bluetooth mics use the voice link, so capture is call-grade — fine for
+  scoring and vocal FX.
+
 ## [0.3.0] - 2026-07-17
 
 ### Added
@@ -86,7 +102,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/nrldcm/okara/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nrldcm/okara/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nrldcm/okara/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nrldcm/okara/releases/tag/v0.1.0

@@ -2,6 +2,8 @@ export interface PairingInfo {
   url: string
   token: string
   mode: 'lan' | 'local'
+  // undefined = unknown/always-on (Electron); false = no Wi-Fi/hotspot (Android)
+  hasNetwork?: boolean
 }
 
 export function useRemote() {
@@ -14,17 +16,32 @@ export function useRemote() {
   // Strip Vue reactivity so the state is structured-clone friendly (postMessage/IPC).
   const plain = (s: PlaybackState) => JSON.parse(JSON.stringify(s)) as PlaybackState
 
+  /** Re-read the pairing URL — the LAN IP changes when Wi-Fi/hotspot toggles. */
+  async function refreshPairing() {
+    const bridge = (window as any).okara
+    if (!bridge?.isElectron) return
+    try {
+      const info = await bridge.getPairing()
+      if (!pairing.value || pairing.value.url !== info.url || pairing.value.hasNetwork !== info.hasNetwork) {
+        pairing.value = { ...info, mode: 'lan' }
+      }
+    } catch { /* server not up yet */ }
+  }
+
   async function init() {
     if (!import.meta.client || inited.value) return
     inited.value = true
     const bridge = (window as any).okara
 
     if (bridge?.isElectron) {
-      const info = await bridge.getPairing()
-      pairing.value = { ...info, mode: 'lan' }
+      await refreshPairing()
       available.value = true
       bridge.onCommand((cmd: RemoteCommand) => bus.dispatch(cmd.action, cmd.value))
       bridge.onRemoteCount?.((n: number) => { connected.value = n })
+      // Wi-Fi came or went: give the interfaces a beat to settle, then
+      // refresh the QR. (Hotspot toggles don't fire this — RemotePanel also
+      // re-polls while there's no network.)
+      bridge.onNetworkChanged?.(() => { setTimeout(refreshPairing, 1200) })
       watch(bus.state, (s) => bridge.sendState(plain(s)), { deep: true, immediate: true })
       return
     }
@@ -46,5 +63,5 @@ export function useRemote() {
     }
   }
 
-  return { available, pairing, connected, init, bus }
+  return { available, pairing, connected, init, refreshPairing, bus }
 }

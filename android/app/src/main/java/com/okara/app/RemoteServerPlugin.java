@@ -1,5 +1,9 @@
 package com.okara.app;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -23,6 +27,32 @@ import java.nio.charset.StandardCharsets;
 public class RemoteServerPlugin extends Plugin {
 
     private RemoteServer server;
+    private ConnectivityManager.NetworkCallback networkCallback;
+
+    @Override
+    public void load() {
+        // Tell the app when Wi-Fi comes or goes so it can refresh the pairing
+        // QR (the LAN IP changes). Hotspot toggles don't fire this callback,
+        // so the app also re-polls while it has no network.
+        ConnectivityManager cm = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return;
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                notifyListeners("networkChanged", new JSObject());
+            }
+
+            @Override
+            public void onLost(Network network) {
+                notifyListeners("networkChanged", new JSObject());
+            }
+        };
+        try {
+            cm.registerDefaultNetworkCallback(networkCallback);
+        } catch (Exception ignored) {
+            // app still works, just without live network-change events
+        }
+    }
 
     private synchronized RemoteServer ensureServer() throws IOException {
         if (server == null) {
@@ -66,6 +96,7 @@ public class RemoteServerPlugin extends Plugin {
             JSObject ret = new JSObject();
             ret.put("url", s.getUrl());
             ret.put("token", s.getToken());
+            ret.put("hasNetwork", s.hasNetwork());
             call.resolve(ret);
         } catch (IOException e) {
             call.reject("Failed to start remote server", e);
@@ -84,6 +115,13 @@ public class RemoteServerPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        if (networkCallback != null) {
+            ConnectivityManager cm = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null) {
+                try { cm.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) { /* not registered */ }
+            }
+            networkCallback = null;
+        }
         RemoteServer s = server;
         if (s != null) {
             s.stopServer();

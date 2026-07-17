@@ -58,6 +58,10 @@ phone remote as the desktop app: open Settings → Phone remote and scan the QR
 with any phone on the same Wi-Fi. Updates install over the old version (same
 signing key).
 
+**No Wi-Fi?** Turn on the tablet's **Hotspot**, connect the phone to it, and
+the remote works with no router or internet at all. A paired **Bluetooth
+mic** (headset / karaoke mic) can be used via Settings → Bluetooth microphone.
+
 Releases are versioned ([SemVer](https://semver.org)) and every change is
 recorded in [`CHANGELOG.md`](CHANGELOG.md). See [`RELEASING.md`](RELEASING.md)
 for how builds are cut.
