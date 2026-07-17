@@ -13,6 +13,24 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.6.0] - 2026-07-17
+
+### Changed
+
+- **Mic monitor latency pushed to the hardware floor (Android)** — the native
+  monitor now runs on an **Oboe/AAudio engine** (LowLatency performance mode +
+  Exclusive sharing, which enables the MMAP no-IRQ path on supported devices):
+  typically **10-25 ms** mic-to-speaker, the minimum Android hardware allows.
+  All FX are computed inside the audio callback in C++ — shelf EQ (bass/
+  treble), echo (ring-buffer delay), and a Freeverb-style reverb — so nothing
+  adds buffering. Falls back to the v0.5.0 Java loop on devices where the
+  native engine can't start.
+- True 0 ms is physically impossible (even hardware karaoke machines are a
+  few ms, and sound itself travels ~1 ms per 34 cm) — but 10-25 ms is below
+  what human hearing can perceive as an echo. For best results use a wired or
+  aux speaker: a **Bluetooth speaker adds 100-200 ms of its own** and will
+  always feel delayed, no matter the app.
+
 ## [0.5.0] - 2026-07-17
 
 ### Fixed
@@ -117,7 +135,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/nrldcm/okara/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/nrldcm/okara/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nrldcm/okara/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nrldcm/okara/compare/v0.2.0...v0.3.0

@@ -56,6 +56,12 @@ public class MonitorPlugin extends Plugin {
         if ((v = call.getDouble("treble")) != null) trebleDb = v.floatValue();
     }
 
+    private boolean usingEngine = false;
+
+    private void pushEngineParams() {
+        MonitorEngine.nativeSetParams(volume, reverb, echo, echoTime, bassDb, trebleDb);
+    }
+
     @PluginMethod
     public void start(PluginCall call) {
         readParams(call);
@@ -63,6 +69,19 @@ public class MonitorPlugin extends Plugin {
             call.resolve();
             return;
         }
+        // Prefer the Oboe engine (AAudio MMAP/Exclusive — the lowest latency
+        // the hardware supports); fall back to the Java loop if the native
+        // library isn't available or the streams fail to open.
+        if (MonitorEngine.AVAILABLE) {
+            pushEngineParams();
+            if (MonitorEngine.nativeStart()) {
+                usingEngine = true;
+                running = true;
+                call.resolve();
+                return;
+            }
+        }
+        usingEngine = false;
         running = true;
         thread = new Thread(this::audioLoop, "okara-monitor");
         thread.start();
@@ -72,13 +91,20 @@ public class MonitorPlugin extends Plugin {
     @PluginMethod
     public void setParams(PluginCall call) {
         readParams(call);
-        applyEffectParams();
+        if (usingEngine) pushEngineParams();
+        else applyEffectParams();
         call.resolve();
     }
 
     @PluginMethod
     public void stop(PluginCall call) {
-        stopLoop();
+        if (usingEngine) {
+            MonitorEngine.nativeStop();
+            usingEngine = false;
+            running = false;
+        } else {
+            stopLoop();
+        }
         call.resolve();
     }
 
@@ -91,6 +117,11 @@ public class MonitorPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        if (usingEngine) {
+            MonitorEngine.nativeStop();
+            usingEngine = false;
+            running = false;
+        }
         stopLoop();
     }
 
