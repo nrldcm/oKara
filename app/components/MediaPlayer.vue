@@ -82,7 +82,7 @@ const channelLabels: Record<string, string> = {
 <template>
   <div class="mplayer">
     <header class="mplayer__bar">
-      <button class="icon-btn" @click="emit('close')">← Back</button>
+      <button class="icon-btn" @click="emit('close')"><i class="bi bi-arrow-left" /> Back</button>
       <div class="mplayer__title">
         <strong>{{ props.song.title }}</strong>
         <span>{{ props.song.artist }} · {{ props.song.source }}</span>
@@ -92,7 +92,7 @@ const channelLabels: Record<string, string> = {
     <div class="stage">
       <video v-if="isVideo" ref="mediaEl" :src="props.song.videoUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" />
       <div v-else class="audio-stage">
-        <div class="disc">🎵</div>
+        <div class="disc"><i class="bi bi-music-note-beamed" /></div>
         <audio ref="mediaEl" :src="props.song.audioUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" />
       </div>
     </div>

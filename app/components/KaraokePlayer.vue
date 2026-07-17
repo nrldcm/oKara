@@ -422,7 +422,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="player">
     <header class="player__bar">
-      <button class="icon-btn" @click="emit('close')">← Back</button>
+      <button class="icon-btn" @click="emit('close')"><i class="bi bi-arrow-left" /> Back</button>
       <div class="player__title">
         <strong>{{ props.song.title }}</strong>
         <span>{{ props.song.artist }}</span>
@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
     <div class="stage">
       <canvas ref="canvas" />
       <div v-if="!playing && !finished" class="overlay">
-        <button class="big-btn" @click="play">▶ Sing!</button>
+        <button class="big-btn" @click="play"><i class="bi bi-play-fill" /> Sing!</button>
         <p class="hint">
           {{ isSynth ? 'Synth melody — sing along and it detects your pitch.' : 'Play and sing along.' }}
         </p>
@@ -442,7 +442,7 @@ onBeforeUnmount(() => {
       <div v-if="finished" class="overlay result">
         <h2>{{ rating }}</h2>
         <div class="stars">
-          <span v-for="i in 5" :key="i" :class="{ on: i <= stars }">★</span>
+          <i v-for="i in 5" :key="i" class="bi" :class="i <= stars ? 'bi-star-fill on' : 'bi-star'" />
         </div>
         <p class="final-score">{{ score.toLocaleString() }} <small>/ {{ MAX_SCORE.toLocaleString() }}</small></p>
         <div class="result-actions">
@@ -453,10 +453,12 @@ onBeforeUnmount(() => {
     </div>
 
     <footer class="player__controls" v-if="!finished">
-      <button class="ctrl" @click="toggle">{{ playing ? '⏸ Pause' : '▶ Play' }}</button>
-      <button class="ctrl ghost" @click="restart">↻ Restart</button>
-      <button class="ctrl ghost" @click="cycleMode" title="Quick mic mode">🎤 {{ settings.fx.mode }}</button>
-      <button class="ctrl ghost" @click="showFx = !showFx">🎚️ FX</button>
+      <button class="ctrl" @click="toggle">
+        <i class="bi" :class="playing ? 'bi-pause-fill' : 'bi-play-fill'" /> {{ playing ? 'Pause' : 'Play' }}
+      </button>
+      <button class="ctrl ghost" @click="restart"><i class="bi bi-arrow-clockwise" /> Restart</button>
+      <button class="ctrl ghost" @click="cycleMode" title="Quick mic mode"><i class="bi bi-mic-fill" /> {{ settings.fx.mode }}</button>
+      <button class="ctrl ghost" @click="showFx = !showFx"><i class="bi bi-sliders" /> FX</button>
       <div class="mic" :class="{ live: pitch.active.value }">
         <span class="dot" /> Mic {{ pitch.active.value ? 'on' : 'off' }}
       </div>
@@ -466,7 +468,7 @@ onBeforeUnmount(() => {
       <div class="fx-sheet">
         <div class="fx-sheet__head">
           <strong>Vocal effects</strong>
-          <button class="icon-btn" @click="showFx = false">✕</button>
+          <button class="icon-btn" @click="showFx = false"><i class="bi bi-x-lg" /></button>
         </div>
         <VocalFxPanel />
       </div>
@@ -493,8 +495,9 @@ onBeforeUnmount(() => {
 .big-btn:hover { filter: brightness(1.08); }
 .hint { color: var(--text-muted); font-size: 14px; text-align: center; }
 .result h2 { font-size: 28px; margin: 0; }
-.stars span { font-size: 38px; color: var(--border); }
-.stars span.on { color: var(--gold); }
+.stars { display: flex; gap: 6px; }
+.stars i { font-size: 34px; color: var(--border); }
+.stars i.on { color: var(--gold); }
 .final-score { font-size: 32px; font-weight: 800; color: var(--gold); }
 .final-score small { font-size: 16px; color: var(--text-muted); }
 .result-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }

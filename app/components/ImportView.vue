@@ -28,7 +28,7 @@ async function handle(files: File[]) {
   try {
     const count = await library.importFiles(files, source.value)
     if (count > 0) {
-      result.value = `Imported ${count} file${count > 1 ? 's' : ''}. It's in your Library now. 🎉`
+      result.value = `Imported ${count} file${count > 1 ? 's' : ''}. It's in your Library now.`
     } else {
       failed.value = true
       result.value = 'No supported songs found in that selection.'
@@ -84,7 +84,7 @@ function onPick(e: Event) {
       @dragleave.prevent="dragging = false"
       @drop.prevent="onDrop"
     >
-      <div class="drop__icon">⬇️</div>
+      <div class="drop__icon"><i class="bi bi-cloud-arrow-down" /></div>
       <p><strong>Drag files here</strong></p>
       <div class="drop__btns">
         <button @click="fileInput?.click()">Choose files</button>

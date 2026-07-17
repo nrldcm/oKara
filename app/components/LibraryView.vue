@@ -30,10 +30,10 @@ const badge = (s: RuntimeSong) =>
     <div class="grid">
       <article v-for="s in filtered" :key="s.id" class="card" @click="emit('play', s)">
         <div class="thumb" :style="s.coverUrl ? { backgroundImage: `url(${s.coverUrl})` } : {}">
-          <span v-if="!s.coverUrl" class="thumb__icon">{{ s.kind === 'video' ? '📺' : '🎤' }}</span>
+          <i v-if="!s.coverUrl" class="thumb__icon bi" :class="s.kind === 'video' ? 'bi-tv-fill' : 'bi-mic-fill'" />
           <span class="thumb__badge" :class="{ score: s.hasScoring }">{{ badge(s) }}</span>
           <span class="thumb__num">#{{ s.number }}</span>
-          <button class="del" title="Remove" @click.stop="emit('remove', s.id)">✕</button>
+          <button class="del" title="Remove" @click.stop="emit('remove', s.id)"><i class="bi bi-x-lg" /></button>
         </div>
         <div class="meta">
           <strong :title="s.title">{{ s.title }}</strong>

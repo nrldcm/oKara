@@ -39,7 +39,7 @@ const sliders: { key: 'volume' | 'reverb' | 'echo' | 'echoTime' | 'bass' | 'treb
 
     <label class="monitor" :class="{ on: fx.monitor }">
       <input type="checkbox" v-model="fx.monitor" />
-      <span>🎙️ Hear my voice (live monitor)</span>
+      <span><i class="bi bi-headphones" /> Hear my voice (live monitor)</span>
     </label>
     <p v-if="fx.monitor" class="warn">Use earphones or keep the mic away from the speakers to avoid feedback.</p>
 

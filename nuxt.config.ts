@@ -2,7 +2,7 @@ export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: '2025-07-01',
   devtools: { enabled: false },
-  css: ['~/assets/css/main.css'],
+  css: ['bootstrap-icons/font/bootstrap-icons.css', '~/assets/css/main.css'],
   app: {
     head: {
       title: 'okara — open karaoke',

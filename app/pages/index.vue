@@ -121,7 +121,7 @@ async function onClear() {
 <template>
   <div class="app">
     <nav class="topbar">
-      <div class="brand">🎤 <span>okara</span></div>
+      <div class="brand"><i class="bi bi-mic-fill" /> <span>okara</span></div>
       <div class="tabs">
         <button :class="{ active: view === 'library' }" @click="view = 'library'">Library</button>
         <button :class="{ active: view === 'import' }" @click="view = 'import'">Import</button>
@@ -129,10 +129,10 @@ async function onClear() {
       </div>
       <div class="actions">
         <button v-if="remote.available.value" class="pill" @click="view = 'settings'">
-          📱<span class="pill__label"> Remote</span>
+          <i class="bi bi-phone-fill" /><span class="pill__label"> Remote</span>
         </button>
         <button class="pill icon" :title="theme === 'dark' ? 'Light mode' : 'Dark mode'" @click="toggleTheme">
-          {{ theme === 'dark' ? '☀️' : '🌙' }}
+          <i class="bi" :class="theme === 'dark' ? 'bi-sun-fill' : 'bi-moon-stars-fill'" />
         </button>
       </div>
     </nav>

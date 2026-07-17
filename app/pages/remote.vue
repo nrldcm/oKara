@@ -60,13 +60,13 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
 <template>
   <div class="remote-page">
     <div class="head">
-      <h1>🎤 okara remote</h1>
+      <h1><i class="bi bi-mic-fill" /> okara remote</h1>
     </div>
 
     <div class="tabs">
-      <button :class="{ active: tab === 'remote' }" @click="tab = 'remote'">🎛️ Remote</button>
+      <button :class="{ active: tab === 'remote' }" @click="tab = 'remote'"><i class="bi bi-grid-3x3-gap-fill" /> Remote</button>
       <button :class="{ active: tab === 'queue' }" @click="tab = 'queue'">
-        📋 Queue<span v-if="state.reserved" class="count">{{ state.reserved }}</span>
+        <i class="bi bi-list-ul" /> Queue<span v-if="state.reserved" class="count">{{ state.reserved }}</span>
       </button>
     </div>
 
@@ -81,36 +81,36 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
     <template v-if="tab === 'remote'">
       <div class="display">
         <span class="num">{{ dialed || '––––' }}</span>
-        <button class="bs" :disabled="!dialed" @click="backspace">⌫</button>
+        <button class="bs" :disabled="!dialed" @click="backspace"><i class="bi bi-backspace-fill" /></button>
       </div>
 
       <div class="keypad">
         <button v-for="n in [1,2,3,4,5,6,7,8,9]" :key="n" class="key" @click="press(String(n))">{{ n }}</button>
         <button class="key sub" @click="clearDial">C</button>
         <button class="key" @click="press('0')">0</button>
-        <button class="key sub" :disabled="!dialed" @click="backspace">⌫</button>
+        <button class="key sub" :disabled="!dialed" @click="backspace"><i class="bi bi-backspace-fill" /></button>
       </div>
 
       <div class="dial-actions">
-        <button class="act play" :disabled="!dialed" @click="playNumber">▶ Play</button>
-        <button class="act reserve" :disabled="!dialed" @click="reserveNumber">＋ Reserve</button>
+        <button class="act play" :disabled="!dialed" @click="playNumber"><i class="bi bi-play-fill" /> Play</button>
+        <button class="act reserve" :disabled="!dialed" @click="reserveNumber"><i class="bi bi-plus-lg" /> Reserve</button>
       </div>
 
       <div class="transport">
-        <button class="btn" @click="cmd('prev')">⏮</button>
-        <button class="btn big" @click="cmd('toggle')">{{ state.playing ? '⏸' : '▶' }}</button>
-        <button class="btn" @click="cmd('next')">⏭</button>
+        <button class="btn" @click="cmd('prev')"><i class="bi bi-skip-start-fill" /></button>
+        <button class="btn big" @click="cmd('toggle')"><i class="bi" :class="state.playing ? 'bi-pause-fill' : 'bi-play-fill'" /></button>
+        <button class="btn" @click="cmd('next')"><i class="bi bi-skip-end-fill" /></button>
       </div>
 
       <div class="row">
-        <button class="btn wide" @click="cmd('restart')">↻ Restart</button>
-        <button class="btn wide stop" @click="cmd('stop')">⏹ Stop</button>
+        <button class="btn wide" @click="cmd('restart')"><i class="bi bi-arrow-clockwise" /> Restart</button>
+        <button class="btn wide stop" @click="cmd('stop')"><i class="bi bi-stop-fill" /> Stop</button>
       </div>
 
       <label class="vol">
-        🔉
+        <i class="bi bi-volume-down-fill" />
         <input type="range" min="0" max="1" step="0.01" :value="state.volume" @input="onVolume" />
-        🔊
+        <i class="bi bi-volume-up-fill" />
       </label>
     </template>
 
@@ -129,9 +129,9 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
             <button class="q-btn no" @click="confirmIdx = null">No</button>
           </template>
           <template v-else>
-            <button class="q-btn" :disabled="i === 0" @click="cmd('reserve-up', i)">▲</button>
-            <button class="q-btn" :disabled="i === state.reservedList.length - 1" @click="cmd('reserve-down', i)">▼</button>
-            <button class="q-btn del" @click="askRemove(i)">✕</button>
+            <button class="q-btn" :disabled="i === 0" @click="cmd('reserve-up', i)"><i class="bi bi-caret-up-fill" /></button>
+            <button class="q-btn" :disabled="i === state.reservedList.length - 1" @click="cmd('reserve-down', i)"><i class="bi bi-caret-down-fill" /></button>
+            <button class="q-btn del" @click="askRemove(i)"><i class="bi bi-x-lg" /></button>
           </template>
         </div>
       </div>
