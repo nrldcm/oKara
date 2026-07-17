@@ -54,6 +54,30 @@ Paano gumagana ang remote:
 npm run generate     # static site sa .output/public
 ```
 
+## Deploy (Dokploy)
+
+Ang app ay nagba-build via Nixpacks: `npm run build` → `npm run start`
+(`node .output/server/index.mjs`, nakikinig sa `PORT`). Naka-pin sa Node 22
+(`nixpacks.toml`).
+
+### Auto-deploy tuwing push sa `main`
+
+May GitHub Actions workflow (`.github/workflows/deploy.yml`) na nag-trigger ng
+Dokploy redeploy sa bawat push sa `main` (o manual via "Run workflow").
+
+Setup (isang beses lang):
+
+1. Sa Dokploy: buksan ang app → **Deployments** → i-enable ang **Auto Deploy**,
+   tapos kopyahin ang **Webhook URL**.
+2. Sa GitHub: **Settings → Secrets and variables → Actions → New repository secret**
+   - Name: `DOKPLOY_WEBHOOK_URL`
+   - Value: ang webhook URL mula sa Dokploy
+3. I-set ang Dokploy deploy branch sa **`main`**.
+
+**Alternatibo (walang Actions):** idikit ang Dokploy Webhook URL diretso sa
+**GitHub → Settings → Webhooks** (push event). Ito ang native na paraan ng
+Dokploy — pipiliin mo lang ang isa sa dalawa.
+
 ## Format
 
 UltraStar `.txt` (`#TITLE #ARTIST #BPM #GAP` + note lines `: start length pitch text`). Reference: <https://usdx.eu/format/>.

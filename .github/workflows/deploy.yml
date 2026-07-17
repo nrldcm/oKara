@@ -1,0 +1,22 @@
+name: Deploy to Dokploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dokploy deployment
+        env:
+          WEBHOOK: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::error::Missing DOKPLOY_WEBHOOK_URL secret. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "Triggering Dokploy deployment…"
+          curl -fsSL -X POST "$WEBHOOK"
+          echo "Deployment triggered."
