@@ -83,7 +83,7 @@ export function parseUltraStar(content: string): UltraStarSong {
         case 'AUDIO': song.audioFile = value; break
         case 'VIDEO': song.videoFile = value; break
         case 'COVER': song.coverFile = value; break
-        case 'BPM': song.bpm = parseFloat(value.replace(',', '.')) || 120; break
+        case 'BPM': { const b = parseFloat(value.replace(',', '.')); song.bpm = b > 0 ? b : 120; break }
         case 'GAP': song.gap = parseFloat(value.replace(',', '.')) || 0; break
         default: song.headers[tag] = value
       }

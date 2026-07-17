@@ -113,30 +113,56 @@ function stopSynth() {
   synthCtx = null
 }
 
+let starting = false
+let disposed = false
+
+function resetScore() {
+  score.value = 0
+  allNotes.forEach((n) => { n.hit = 0 })
+}
+
 async function play() {
-  if (finished.value) restart()
-  if (!pitch.active.value) await pitch.start(settings.value.micDeviceId || undefined)
+  if (playing.value || starting) return
+  if (finished.value) {
+    finished.value = false
+    pausedMs = 0
+    resetScore()
+    if (isSynth) stopSynth()
+    else if (audioEl.value) audioEl.value.currentTime = 0
+  }
+  starting = true
+  try {
+    if (!pitch.active.value) await pitch.start(settings.value.micDeviceId || undefined)
+  } finally {
+    starting = false
+  }
+  if (disposed) return
   playing.value = true
   if (isSynth) scheduleSynth(pausedMs)
   else await audioEl.value?.play().catch(() => {})
   lastFrame = performance.now()
-  loop()
+  cancelAnimationFrame(raf)
+  raf = requestAnimationFrame(loop)
 }
 
 function pause() {
-  playing.value = false
+  if (!playing.value) return
   if (isSynth) { pausedMs = nowMs(); stopSynth() }
   else audioEl.value?.pause()
+  playing.value = false
   cancelAnimationFrame(raf)
 }
 
 function restart() {
-  finished.value = false
-  score.value = 0
-  pausedMs = 0
-  allNotes.forEach((n) => { n.hit = 0 })
+  const wasPlaying = playing.value
+  cancelAnimationFrame(raf)
   if (isSynth) stopSynth()
   else if (audioEl.value) audioEl.value.currentTime = 0
+  finished.value = false
+  pausedMs = 0
+  resetScore()
+  playing.value = false
+  if (wasPlaying) play()
 }
 
 function toggle() {
@@ -155,13 +181,12 @@ function applyVolume() {
 
 watch(playing, (v) => { bus.state.value = { ...bus.state.value, playing: v, volume: volume.value } })
 
-watch(() => bus.command.value.seq, () => {
-  const c = bus.command.value
+const offCommand = bus.onCommand((c) => {
   switch (c.action) {
-    case 'play': if (!playing.value) play(); break
-    case 'pause': if (playing.value) pause(); break
+    case 'play': play(); break
+    case 'pause': pause(); break
     case 'toggle': toggle(); break
-    case 'restart': restart(); play(); break
+    case 'restart': restart(); break
     case 'volume': volume.value = Math.min(1, Math.max(0, c.value ?? 1)); applyVolume(); break
   }
 })
@@ -385,6 +410,8 @@ onMounted(() => {
   window.addEventListener('resize', resize)
 })
 onBeforeUnmount(() => {
+  disposed = true
+  offCommand()
   cancelAnimationFrame(raf)
   window.removeEventListener('resize', resize)
   stopSynth()
@@ -419,7 +446,7 @@ onBeforeUnmount(() => {
         </div>
         <p class="final-score">{{ score.toLocaleString() }} <small>/ {{ MAX_SCORE.toLocaleString() }}</small></p>
         <div class="result-actions">
-          <button class="big-btn" @click="() => { restart(); play() }">Again</button>
+          <button class="big-btn" @click="play">Again</button>
           <button class="icon-btn" @click="emit('close')">Library</button>
         </div>
       </div>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { RuntimeSong } from '~/composables/useLibrary'
-import type { SongSource } from '~/utils/db'
 
 const library = useLibrary()
 const { load: loadSettings } = useSettings()
@@ -100,8 +99,7 @@ watch(nowPlaying, (s) => {
   }
 })
 
-watch(() => bus.command.value.seq, () => {
-  const c = bus.command.value
+const offCommand = bus.onCommand((c) => {
   switch (c.action) {
     case 'next': playNext(); break
     case 'prev': playPrev(); break
@@ -113,10 +111,7 @@ watch(() => bus.command.value.seq, () => {
     case 'reserve-down': moveReserved(c.value, 1); break
   }
 })
-
-async function onImport(files: File[], source: SongSource) {
-  await library.importFiles(files, source)
-}
+onBeforeUnmount(offCommand)
 
 async function onClear() {
   await library.clearAll()
@@ -144,7 +139,7 @@ async function onClear() {
 
     <main class="content">
       <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" />
-      <ImportView v-else-if="view === 'import'" @import="onImport" />
+      <ImportView v-else-if="view === 'import'" />
       <SettingsView v-else @clear="onClear" />
     </main>
 

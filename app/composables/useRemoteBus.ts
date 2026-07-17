@@ -25,6 +25,9 @@ export interface PlaybackState {
   messageSeq: number
 }
 
+type CommandListener = (cmd: RemoteCommand) => void
+const listeners = new Set<CommandListener>()
+
 export function useRemoteBus() {
   const command = useState<RemoteCommand>('okara-remote-cmd', () => ({ action: '', seq: 0 }))
   const state = useState<PlaybackState>('okara-remote-state', () => ({
@@ -33,12 +36,20 @@ export function useRemoteBus() {
   }))
 
   function dispatch(action: RemoteCommand['action'], value?: number) {
-    command.value = { action, value, seq: command.value.seq + 1 }
+    const cmd: RemoteCommand = { action, value, seq: command.value.seq + 1 }
+    command.value = cmd
+    // Deliver synchronously to every listener so rapid commands can't coalesce.
+    listeners.forEach((l) => { try { l(cmd) } catch (e) { console.error(e) } })
+  }
+
+  function onCommand(cb: CommandListener) {
+    listeners.add(cb)
+    return () => { listeners.delete(cb) }
   }
 
   function flash(message: string) {
     state.value = { ...state.value, message, messageSeq: state.value.messageSeq + 1 }
   }
 
-  return { command, state, dispatch, flash }
+  return { command, state, dispatch, onCommand, flash }
 }

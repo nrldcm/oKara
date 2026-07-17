@@ -76,7 +76,8 @@ export function useSettings() {
   }
 
   function save() {
-    if (import.meta.client) localStorage.setItem(KEY, JSON.stringify(settings.value))
+    if (!import.meta.client) return
+    try { localStorage.setItem(KEY, JSON.stringify(settings.value)) } catch { /* private mode / quota */ }
   }
 
   watch(settings, save, { deep: true })

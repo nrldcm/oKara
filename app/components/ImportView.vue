@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { SongSource } from '~/utils/db'
 
-const emit = defineEmits<{ import: [files: File[], source: SongSource] }>()
+const library = useLibrary()
 
 const source = ref<SongSource>('UltraStar')
 const dragging = ref(false)
 const busy = ref(false)
 const result = ref<string | null>(null)
+const failed = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const folderInput = ref<HTMLInputElement | null>(null)
 
@@ -23,12 +24,21 @@ async function handle(files: File[]) {
   if (!files.length) return
   busy.value = true
   result.value = null
-  const count = await new Promise<number>((resolve) => {
-    emit('import', files, source.value)
-    setTimeout(() => resolve(files.length), 0)
-  })
-  busy.value = false
-  result.value = `Imported ${count} file${count > 1 ? 's' : ''}. It's in your Library now. 🎉`
+  failed.value = false
+  try {
+    const count = await library.importFiles(files, source.value)
+    if (count > 0) {
+      result.value = `Imported ${count} file${count > 1 ? 's' : ''}. It's in your Library now. 🎉`
+    } else {
+      failed.value = true
+      result.value = 'No supported songs found in that selection.'
+    }
+  } catch {
+    failed.value = true
+    result.value = 'Import failed — storage may be full.'
+  } finally {
+    busy.value = false
+  }
 }
 
 function onDrop(e: DragEvent) {
@@ -81,7 +91,7 @@ function onPick(e: Event) {
         <button class="ghost" @click="folderInput?.click()">Choose folder</button>
       </div>
       <p v-if="busy" class="status">Importing…</p>
-      <p v-else-if="result" class="status ok">{{ result }}</p>
+      <p v-else-if="result" class="status" :class="failed ? 'err' : 'ok'">{{ result }}</p>
     </div>
 
     <input ref="fileInput" type="file" multiple hidden
@@ -119,6 +129,7 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .drop__btns .ghost { background: var(--surface-2); color: var(--text); }
 .status { margin-top: 14px; color: var(--text-muted); }
 .status.ok { color: var(--ok); }
+.status.err { color: var(--danger); }
 .note { margin-top: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
 .note h3 { margin: 0 0 8px; font-size: 15px; }
 .note ul { margin: 0; padding-left: 18px; line-height: 1.7; color: var(--text-muted); font-size: 14px; }

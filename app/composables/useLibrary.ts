@@ -15,6 +15,11 @@ const AUDIO_EXT = ['mp3', 'm4a', 'ogg', 'oga', 'opus', 'wav', 'aac', 'flac']
 const VIDEO_EXT = ['mp4', 'webm', 'ogv', 'mov', 'avi', 'mkv', 'mpg', 'mpeg', 'dat', 'vob', 'm4v']
 const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif']
 
+function uid(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 function ext(name: string): string {
   return name.split('.').pop()?.toLowerCase() ?? ''
 }
@@ -65,7 +70,7 @@ async function detectSongs(files: File[], source: SongSource): Promise<StoredSon
     const cover = byName(parsed.coverFile) || take((f) => IMAGE_EXT.includes(ext(f.name)))
 
     out.push({
-      id: crypto.randomUUID(),
+      id: uid(),
       number: 0,
       title: parsed.title || stripExt(txtFile.name),
       artist: parsed.artist || 'Unknown',
@@ -84,7 +89,7 @@ async function detectSongs(files: File[], source: SongSource): Promise<StoredSon
     const e = ext(f.name)
     if (VIDEO_EXT.includes(e)) {
       out.push({
-        id: crypto.randomUUID(),
+        id: uid(),
         number: 0,
         title: stripExt(f.name),
         artist: source === 'Demo' ? 'Import' : source,
@@ -96,7 +101,7 @@ async function detectSongs(files: File[], source: SongSource): Promise<StoredSon
       })
     } else if (AUDIO_EXT.includes(e)) {
       out.push({
-        id: crypto.randomUUID(),
+        id: uid(),
         number: 0,
         title: stripExt(f.name),
         artist: source === 'Demo' ? 'Import' : source,

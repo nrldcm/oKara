@@ -58,10 +58,9 @@ function onEnded() {
   emit('ended')
 }
 
-watch(() => bus.command.value.seq, () => {
+const offCommand = bus.onCommand((c) => {
   const el = mediaEl.value
   if (!el) return
-  const c = bus.command.value
   switch (c.action) {
     case 'play': onPlay(); el.play().catch(() => {}); break
     case 'pause': el.pause(); break
@@ -71,7 +70,7 @@ watch(() => bus.command.value.seq, () => {
   }
 })
 
-onBeforeUnmount(() => { ctx?.close().catch(() => {}) })
+onBeforeUnmount(() => { offCommand(); ctx?.close().catch(() => {}) })
 
 const channelLabels: Record<string, string> = {
   stereo: 'Original (L+R)',
