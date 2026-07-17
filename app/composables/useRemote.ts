@@ -11,6 +11,9 @@ export function useRemote() {
   const connected = useState('okara-remote-connected', () => 0)
   const inited = useState('okara-remote-inited', () => false)
 
+  // Strip Vue reactivity so the state is structured-clone friendly (postMessage/IPC).
+  const plain = (s: PlaybackState) => JSON.parse(JSON.stringify(s)) as PlaybackState
+
   async function init() {
     if (!import.meta.client || inited.value) return
     inited.value = true
@@ -22,7 +25,7 @@ export function useRemote() {
       available.value = true
       bridge.onCommand((cmd: RemoteCommand) => bus.dispatch(cmd.action, cmd.value))
       bridge.onRemoteCount?.((n: number) => { connected.value = n })
-      watch(bus.state, (s) => bridge.sendState({ ...s }), { deep: true, immediate: true })
+      watch(bus.state, (s) => bridge.sendState(plain(s)), { deep: true, immediate: true })
       return
     }
 
@@ -37,9 +40,9 @@ export function useRemote() {
       channel.onmessage = (e) => {
         const d = e.data
         if (d?.type === 'cmd') bus.dispatch(d.action, d.value)
-        if (d?.type === 'hello') channel.postMessage({ type: 'state', state: { ...bus.state.value } })
+        if (d?.type === 'hello') channel.postMessage({ type: 'state', state: plain(bus.state.value) })
       }
-      watch(bus.state, (s) => channel.postMessage({ type: 'state', state: { ...s } }), { deep: true })
+      watch(bus.state, (s) => channel.postMessage({ type: 'state', state: plain(s) }), { deep: true })
     }
   }
 

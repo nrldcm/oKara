@@ -1,9 +1,16 @@
 export interface RemoteCommand {
   action:
     | 'play' | 'pause' | 'toggle' | 'restart' | 'stop' | 'next' | 'prev'
-    | 'volume' | 'seek' | 'play-number' | 'reserve-number' | ''
+    | 'volume' | 'seek' | 'play-number' | 'reserve-number'
+    | 'reserve-remove' | 'reserve-up' | 'reserve-down' | ''
   value?: number
   seq: number
+}
+
+export interface ReservedItem {
+  number: number
+  title: string
+  artist: string
 }
 
 export interface PlaybackState {
@@ -13,6 +20,7 @@ export interface PlaybackState {
   artist: string
   volume: number
   reserved: number
+  reservedList: ReservedItem[]
   message: string
   messageSeq: number
 }
@@ -21,7 +29,7 @@ export function useRemoteBus() {
   const command = useState<RemoteCommand>('okara-remote-cmd', () => ({ action: '', seq: 0 }))
   const state = useState<PlaybackState>('okara-remote-state', () => ({
     hasSong: false, playing: false, title: '', artist: '', volume: 1,
-    reserved: 0, message: '', messageSeq: 0,
+    reserved: 0, reservedList: [], message: '', messageSeq: 0,
   }))
 
   function dispatch(action: RemoteCommand['action'], value?: number) {

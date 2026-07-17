@@ -65,8 +65,27 @@ function reserveNumber(num?: number) {
   bus.flash(`Reserved: ${s.title}`)
 }
 
+function reservedPayload() {
+  return reserved.value.map((s) => ({ number: s.number, title: s.title, artist: s.artist }))
+}
+
 function syncReserved() {
-  bus.state.value = { ...bus.state.value, reserved: reserved.value.length }
+  bus.state.value = { ...bus.state.value, reserved: reserved.value.length, reservedList: reservedPayload() }
+}
+
+function removeReserved(i?: number) {
+  if (i == null || i < 0 || i >= reserved.value.length) return
+  reserved.value.splice(i, 1)
+  syncReserved()
+}
+
+function moveReserved(i?: number, dir = 0) {
+  if (i == null) return
+  const j = i + dir
+  if (j < 0 || j >= reserved.value.length) return
+  const a = reserved.value
+  ;[a[i], a[j]] = [a[j], a[i]]
+  syncReserved()
 }
 
 watch(nowPlaying, (s) => {
@@ -77,6 +96,7 @@ watch(nowPlaying, (s) => {
     artist: s?.artist ?? '',
     playing: false,
     reserved: reserved.value.length,
+    reservedList: reservedPayload(),
   }
 })
 
@@ -88,6 +108,9 @@ watch(() => bus.command.value.seq, () => {
     case 'stop': stop(); break
     case 'play-number': playNumber(c.value); break
     case 'reserve-number': reserveNumber(c.value); break
+    case 'reserve-remove': removeReserved(c.value); break
+    case 'reserve-up': moveReserved(c.value, -1); break
+    case 'reserve-down': moveReserved(c.value, 1); break
   }
 })
 
