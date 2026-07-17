@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fil">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>okara remote</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: #0d0d1a; color: #fff; font-family: system-ui, sans-serif; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 30px 20px; }
+  h1 { font-size: 22px; }
+  .now { text-align: center; min-height: 48px; display: flex; flex-direction: column; }
+  .now strong { font-size: 20px; }
+  .now span { opacity: .6; }
+  .pad { display: flex; align-items: center; gap: 18px; }
+  .btn { border: none; border-radius: 50%; width: 72px; height: 72px; font-size: 26px; background: #1c1c33;
+    color: #fff; cursor: pointer; }
+  .btn.big { width: 96px; height: 96px; font-size: 36px; background: linear-gradient(135deg, #ff5da2, #ff9d5d); }
+  .row { display: flex; gap: 14px; width: 100%; max-width: 340px; }
+  .btn.wide { width: 100%; height: 54px; border-radius: 14px; font-size: 16px; }
+  .btn.stop { background: #e0455e; }
+  .vol { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 340px; }
+  .vol input { flex: 1; }
+  .status { opacity: .5; font-size: 13px; margin-top: auto; }
+</style>
+</head>
+<body>
+  <h1>🎤 okara remote</h1>
+  <div class="now" id="now"><em style="opacity:.5">Kumokonekta…</em></div>
+  <div class="pad">
+    <button class="btn" onclick="cmd('prev')">⏮</button>
+    <button class="btn big" id="toggle" onclick="cmd('toggle')">▶</button>
+    <button class="btn" onclick="cmd('next')">⏭</button>
+  </div>
+  <div class="row">
+    <button class="btn wide" onclick="cmd('restart')">↻ Restart</button>
+    <button class="btn wide stop" onclick="cmd('stop')">⏹ Stop</button>
+  </div>
+  <label class="vol">🔉<input type="range" min="0" max="1" step="0.01" value="1"
+    oninput="cmd('volume', Number(this.value))" />🔊</label>
+  <p class="status" id="status">…</p>
+
+<script>
+  const token = new URLSearchParams(location.search).get('t')
+  const status = document.getElementById('status')
+  const now = document.getElementById('now')
+  const toggle = document.getElementById('toggle')
+  let ws
+
+  function connect() {
+    ws = new WebSocket(`ws://${location.host}/ws?t=${token}`)
+    ws.onopen = () => { status.textContent = 'Konektado' }
+    ws.onclose = () => { status.textContent = 'Nadiskonek — sinusubukan ulit…'; setTimeout(connect, 1500) }
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data)
+        if (msg.type === 'state') render(msg.state)
+      } catch {}
+    }
+  }
+
+  function render(s) {
+    if (s.hasSong) {
+      now.innerHTML = `<strong>${escapeHtml(s.title)}</strong><span>${escapeHtml(s.artist)}</span>`
+    } else {
+      now.innerHTML = '<em style="opacity:.5">Walang tumutugtog</em>'
+    }
+    toggle.textContent = s.playing ? '⏸' : '▶'
+  }
+
+  function cmd(action, value) {
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'cmd', action, value }))
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  }
+
+  if (!token) status.textContent = 'Kulang ang pairing token — i-scan ang QR ulit.'
+  else connect()
+</script>
+</body>
+</html>

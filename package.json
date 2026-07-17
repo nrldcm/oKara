@@ -1,0 +1,24 @@
+{
+  "name": "okara",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Open karaoke web app — UltraStar player, pitch scoring, and QR phone remote.",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "electron": "NUXT_APP_BASE_URL=./ nuxt generate && electron electron/main.cjs"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "nuxt": "^4.0.0"
+  }
+}
