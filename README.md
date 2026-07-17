@@ -35,6 +35,20 @@ files** with the lyrics burned in — those can be imported and played. The
 **encrypted chip/cartridge data** (e.g. a Magic Sing cartridge) is proprietary
 and cannot be extracted. Only use files you legally own.
 
+## Download (Windows)
+
+Grab the latest desktop build from the **Releases** page:
+
+> **https://github.com/nrldcm/okara/releases/latest**
+
+- `okara-X.Y.Z-setup.exe` — installer
+- `okara-X.Y.Z-portable.exe` — portable, no install
+- `SHA256SUMS.txt` — verify with `sha256sum -c SHA256SUMS.txt`
+
+Releases are versioned ([SemVer](https://semver.org)) and every change is
+recorded in [`CHANGELOG.md`](CHANGELOG.md). See [`RELEASING.md`](RELEASING.md)
+for how builds are cut.
+
 ## Development
 
 ```bash
@@ -72,10 +86,15 @@ How the remote works:
 
 ## Build a Windows `.exe`
 
-**Easiest — no Windows machine needed:** GitHub Actions builds it for you.
-Go to **Actions → "Build Windows app" → Run workflow** (or push a `v*` tag). The
-installer and portable `.exe` are uploaded as artifacts on the run
+**Easiest — no Windows machine needed:** GitHub Actions builds it for you
 (`.github/workflows/build-windows.yml`, on a `windows-latest` runner).
+
+- **Push a version tag** (`git tag v0.2.0 && git push --tags`) → builds **and
+  publishes a [GitHub Release](https://github.com/nrldcm/okara/releases)** with
+  the `.exe` files and `SHA256SUMS.txt` attached. Full steps in
+  [`RELEASING.md`](RELEASING.md).
+- **Actions → "Build Windows app" → Run workflow** → builds and uploads the
+  `.exe` files as **workflow artifacts** only (for testing a build, no Release).
 
 **Locally on Windows:**
 
@@ -85,9 +104,10 @@ npm i -D electron electron-builder
 npm run dist         # -> dist-electron/okara-<version>-setup.exe (+ portable)
 ```
 
-Packaging config lives in `electron-builder.yml`. Note: cross-compiling a
-Windows installer from Linux/macOS needs Wine — the GitHub Actions route avoids
-that.
+Packaging config lives in `electron-builder.yml`. The app icon comes from
+`build/icon.ico` (regenerate with `npm run icons` after editing
+`build/icon.svg`). Note: cross-compiling a Windows installer from Linux/macOS
+needs Wine — the GitHub Actions route avoids that.
 
 ## Build for the web
 

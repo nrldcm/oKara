@@ -6,9 +6,11 @@ directories:
 files:
   - electron/**/*
   - .output/public/**/*
+  - build/icon.ico
   - package.json
 asar: true
 win:
+  icon: build/icon.ico
   target:
     - nsis
     - portable
@@ -16,6 +18,9 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
   artifactName: ${productName}-${version}-setup.${ext}
 portable:
   artifactName: ${productName}-${version}-portable.${ext}

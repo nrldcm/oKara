@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "description": "Open karaoke web app — UltraStar player, pitch scoring, and QR phone remote.",
+  "author": "nrldcm",
+  "license": "MIT",
+  "homepage": "https://github.com/nrldcm/okara",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nrldcm/okara.git"
+  },
   "main": "electron/main.cjs",
   "engines": {
     "node": ">=20.9.0"
@@ -17,7 +24,8 @@
     "start": "node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
     "electron": "npm run generate:electron && electron electron/main.cjs",
-    "dist": "npm run generate:electron && electron-builder --win"
+    "dist": "npm run generate:electron && electron-builder --win",
+    "icons": "node build/generate-icons.mjs"
   },
   "dependencies": {
     "bootstrap-icons": "^1.13.1",
@@ -29,6 +37,8 @@
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.5",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.33.5"
   }
 }

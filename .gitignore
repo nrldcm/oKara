@@ -3,6 +3,7 @@ node_modules
 .output
 dist
 dist-electron
+build/icons
 .data
 *.log
 .DS_Store

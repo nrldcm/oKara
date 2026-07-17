@@ -5,11 +5,17 @@ const { startRemoteServer } = require('./server.cjs')
 let win = null
 let remote = null
 
+// Resolves in dev and inside the packaged asar (build/ is bundled — see
+// electron-builder.yml `files`). Used for the window / taskbar header icon;
+// the .exe icon itself is set by electron-builder from build/icon.ico.
+const iconPath = path.join(__dirname, '..', 'build', 'icon.ico')
+
 async function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 820,
     backgroundColor: '#0d0d1a',
+    icon: iconPath,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
