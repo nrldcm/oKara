@@ -1,0 +1,37 @@
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SPA for Electron
+        run: npx nuxt generate
+        env:
+          NUXT_APP_BASE_URL: ./
+
+      - name: Install Electron toolchain
+        run: npm install --no-save electron electron-builder
+
+      - name: Build Windows installer + portable
+        run: npx electron-builder --win --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: okara-windows
+          path: dist-electron/*.exe
+          if-no-files-found: error

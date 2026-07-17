@@ -32,9 +32,27 @@ Web mode: gumagana ang phone remote sa **same device** (bagong tab, `#/remote`) 
 Para sa tunay na scan-from-phone remote, gamitin ang desktop app. Kailangan ng Electron:
 
 ```bash
-npm i -D electron ws
-npm run electron     # nag-generate ng static build + nag-launch ng Electron
+npm i -D electron
+npm run electron     # generate static build + launch Electron
 ```
+
+### Build a Windows .exe
+
+**Easiest — no Windows machine needed:** GitHub Actions builds it for you.
+Go to **Actions → "Build Windows app" → Run workflow** (or push a `v*` tag).
+The installer + portable `.exe` are uploaded as artifacts on the run
+(`.github/workflows/build-windows.yml`, uses a `windows-latest` runner).
+
+**Locally on Windows:**
+
+```bash
+npm ci
+npm i -D electron electron-builder
+npm run dist         # -> dist-electron/okara-<version>-setup.exe (+ portable)
+```
+
+Packaging config is in `electron-builder.yml`. Note: cross-compiling a Windows
+installer from Linux/macOS needs Wine — the GitHub Actions route avoids that.
 
 Paano gumagana ang remote:
 

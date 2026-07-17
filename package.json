@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Open karaoke web app — UltraStar player, pitch scoring, and QR phone remote.",
+  "main": "electron/main.cjs",
   "engines": {
     "node": ">=20.9.0"
   },
@@ -11,18 +12,22 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "generate": "nuxt generate",
+    "generate:electron": "cross-env NUXT_APP_BASE_URL=./ nuxt generate",
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
-    "electron": "NUXT_APP_BASE_URL=./ nuxt generate && electron electron/main.cjs"
+    "electron": "npm run generate:electron && electron electron/main.cjs",
+    "dist": "npm run generate:electron && electron-builder --win"
   },
   "dependencies": {
     "nuxt": "^4.0.0",
     "qrcode": "^1.5.4",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/qrcode": "^1.5.5"
+    "@types/qrcode": "^1.5.5",
+    "cross-env": "^7.0.3"
   }
 }

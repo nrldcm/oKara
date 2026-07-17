@@ -1,0 +1,21 @@
+appId: com.okara.app
+productName: okara
+directories:
+  output: dist-electron
+  buildResources: build
+files:
+  - electron/**/*
+  - .output/public/**/*
+  - package.json
+asar: true
+win:
+  target:
+    - nsis
+    - portable
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-setup.${ext}
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
