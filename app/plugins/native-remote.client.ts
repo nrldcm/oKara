@@ -13,6 +13,18 @@ interface MicRoutePlugin {
   setBluetooth(options: { on: boolean }): Promise<{ available: boolean; on: boolean }>
 }
 
+interface MonitorParams {
+  volume?: number; reverb?: number; echo?: number
+  echoTime?: number; bass?: number; treble?: number
+}
+
+interface MonitorNativePlugin {
+  start(params: MonitorParams): Promise<void>
+  setParams(params: MonitorParams): Promise<void>
+  stop(): Promise<void>
+  status(): Promise<{ running: boolean }>
+}
+
 interface LibraryEntry { name: string; path: string }
 
 interface LibraryNativePlugin {
@@ -35,6 +47,7 @@ export default defineNuxtPlugin(() => {
   const remote = registerPlugin<RemoteServerPlugin>('RemoteServer')
   const library = registerPlugin<LibraryNativePlugin>('Library')
   const micRoute = registerPlugin<MicRoutePlugin>('MicRoute')
+  const monitor = registerPlugin<MonitorNativePlugin>('Monitor')
 
   ;(window as any).okara = {
     isElectron: true,
@@ -55,6 +68,15 @@ export default defineNuxtPlugin(() => {
     micRoute: {
       status: () => micRoute.status(),
       setBluetooth: (on: boolean) => micRoute.setBluetooth({ on }),
+    },
+
+    // Native mic→speaker passthrough (~20-50 ms) — the WebView's own audio
+    // output is far too slow for live vocal monitoring on Android.
+    nativeMonitor: {
+      start: (params: MonitorParams) => monitor.start(params),
+      setParams: (params: MonitorParams) => monitor.setParams(params),
+      stop: () => monitor.stop(),
+      status: () => monitor.status(),
     },
 
     toMediaUrl: (path: string) => Capacitor.convertFileSrc(path),

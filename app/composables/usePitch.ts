@@ -62,7 +62,25 @@ export function usePitch() {
     setMonitor(settings.value.fx.monitor)
   }
 
+  // On Android the WebView's audio output adds 150-300 ms — unusable for
+  // hearing your own voice. When the native passthrough monitor exists, it
+  // handles mic→speaker (+FX) at ~20-50 ms and the Web Audio graph is used
+  // only for pitch analysis.
+  function nativeMonitor() {
+    return (window as any).okara?.nativeMonitor
+  }
+
+  function fxParams() {
+    const fx = settings.value.fx
+    return {
+      volume: fx.volume, reverb: fx.reverb, echo: fx.echo,
+      echoTime: fx.echoTime, bass: fx.bass, treble: fx.treble,
+    }
+  }
+
   function applyFx() {
+    const native = nativeMonitor()
+    if (native && monitorOn) native.setParams(fxParams()).catch(() => {})
     if (!audioCtx || !outGain) return
     const fx = settings.value.fx
     const t = audioCtx.currentTime
@@ -76,10 +94,18 @@ export function usePitch() {
   }
 
   function setMonitor(on: boolean) {
-    if (!audioCtx || !outGain) { monitorOn = on; return }
+    monitorOn = on
+    const native = nativeMonitor()
+    if (native) {
+      // Native path owns the speaker; keep the web graph detached.
+      if (audioCtx && outGain) { try { outGain.disconnect(audioCtx.destination) } catch { /* */ } }
+      if (on) native.start(fxParams()).catch(() => {})
+      else native.stop().catch(() => {})
+      return
+    }
+    if (!audioCtx || !outGain) return
     try { outGain.disconnect(audioCtx.destination) } catch { /* */ }
     if (on) outGain.connect(audioCtx.destination)
-    monitorOn = on
   }
 
   watch(() => settings.value.fx, applyFx, { deep: true })
@@ -94,10 +120,11 @@ export function usePitch() {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
+          latency: 0,
           ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-        },
+        } as MediaTrackConstraints,
       })
-      audioCtx = new AudioContext({ latencyHint: 'interactive' })
+      audioCtx = new AudioContext({ latencyHint: 0 })
       const src = audioCtx.createMediaStreamSource(stream)
       analyser = audioCtx.createAnalyser()
       analyser.fftSize = 2048
@@ -127,6 +154,7 @@ export function usePitch() {
   }
 
   function stop() {
+    nativeMonitor()?.stop().catch(() => {})
     stream?.getTracks().forEach((t) => t.stop())
     audioCtx?.close().catch(() => {})
     analyser = null

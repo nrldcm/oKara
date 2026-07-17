@@ -13,6 +13,21 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.5.0] - 2026-07-17
+
+### Fixed
+
+- **Mic monitor delay on Android** — hearing your own voice was delayed by the
+  WebView's audio output path (150–300 ms, unrelated to Wi-Fi). The monitor now
+  runs as a **native mic→speaker passthrough** (dedicated audio thread, native
+  buffer size, `PERFORMANCE_MODE_LOW_LATENCY`) at roughly 20–50 ms, with echo
+  done natively (ring-buffer delay) and reverb / bass / treble via Android's
+  built-in audio effects on the output session. The soundboard controls
+  (host + phone remote) drive the native path live. Pitch scoring still runs
+  in the web layer and is unaffected.
+- Web/desktop mic path tuned further: `latency: 0` capture hint and a
+  zero-latency `AudioContext` hint.
+
 ## [0.4.0] - 2026-07-17
 
 ### Added
@@ -102,7 +117,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/nrldcm/okara/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nrldcm/okara/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nrldcm/okara/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nrldcm/okara/compare/v0.1.0...v0.2.0

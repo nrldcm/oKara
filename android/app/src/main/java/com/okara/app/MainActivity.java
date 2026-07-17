@@ -17,6 +17,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(RemoteServerPlugin.class);
         registerPlugin(LibraryPlugin.class);
         registerPlugin(MicRoutePlugin.class);
+        registerPlugin(MonitorPlugin.class);
         super.onCreate(savedInstanceState);
 
         // A karaoke host must not dim or lock mid-song.
