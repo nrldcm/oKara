@@ -29,8 +29,8 @@ watch([pairing, theme], renderQr)
   <div class="remote">
     <h3>Phone remote</h3>
     <p class="desc">
-      I-scan ang QR gamit ang phone para gawing remote control — play, pause, next,
-      previous, stop, at volume, tulad ng tunay na karaoke remote.
+      Scan the QR with your phone to turn it into a remote control — play, pause,
+      next, previous, stop, and volume, just like a real karaoke remote.
     </p>
 
     <div v-if="available" class="pair">
@@ -44,18 +44,18 @@ watch([pairing, theme], renderQr)
         <p class="url">{{ pairing?.url }}</p>
         <p class="conn">
           <span class="dot" :class="{ on: connected > 0 }" />
-          {{ connected }} naka-konekta
+          {{ connected }} connected
         </p>
         <p v-if="pairing?.mode === 'local'" class="hint">
-          Web mode: bukas sa parehong device (bagong tab). Para sa scan-from-phone,
-          gamitin ang desktop app (Electron) — secure LAN pairing na may token.
+          Web mode: opens on the same device (new tab). For scan-from-phone, use the
+          desktop app (Electron) — secure LAN pairing with a token.
         </p>
         <p v-else class="hint">
-          Secure: kailangan ng one-time token mula sa QR, at LAN-only lang ang koneksyon.
+          Secure: needs a one-time token from the QR, and the connection is LAN-only.
         </p>
       </div>
     </div>
-    <p v-else class="unavailable">Hindi available ang remote sa environment na ito.</p>
+    <p v-else class="unavailable">Remote isn't available in this environment.</p>
   </div>
 </template>
 

@@ -14,6 +14,7 @@ const view = ref<View>('library')
 const nowPlaying = ref<RuntimeSong | null>(null)
 const queue = ref<RuntimeSong[]>([])
 const index = ref(0)
+const reserved = ref<RuntimeSong[]>([])
 
 onMounted(async () => {
   initTheme()
@@ -29,6 +30,7 @@ function play(song: RuntimeSong) {
 }
 
 function playNext() {
+  if (reserved.value.length) { nowPlaying.value = reserved.value.shift()!; syncReserved(); return }
   if (!queue.value.length) return
   index.value = (index.value + 1) % queue.value.length
   nowPlaying.value = queue.value[index.value]
@@ -44,6 +46,29 @@ function stop() {
   nowPlaying.value = null
 }
 
+function onEnded() {
+  if (reserved.value.length) playNext()
+}
+
+function playNumber(num?: number) {
+  const s = num != null ? library.findByNumber(num) : undefined
+  if (s) play(s)
+  else bus.flash(`Song #${num} not found`)
+}
+
+function reserveNumber(num?: number) {
+  const s = num != null ? library.findByNumber(num) : undefined
+  if (!s) { bus.flash(`Song #${num} not found`); return }
+  if (!nowPlaying.value) { play(s); return }
+  reserved.value.push(s)
+  syncReserved()
+  bus.flash(`Reserved: ${s.title}`)
+}
+
+function syncReserved() {
+  bus.state.value = { ...bus.state.value, reserved: reserved.value.length }
+}
+
 watch(nowPlaying, (s) => {
   bus.state.value = {
     ...bus.state.value,
@@ -51,14 +76,19 @@ watch(nowPlaying, (s) => {
     title: s?.title ?? '',
     artist: s?.artist ?? '',
     playing: false,
+    reserved: reserved.value.length,
   }
 })
 
 watch(() => bus.command.value.seq, () => {
-  const a = bus.command.value.action
-  if (a === 'next') playNext()
-  else if (a === 'prev') playPrev()
-  else if (a === 'stop') stop()
+  const c = bus.command.value
+  switch (c.action) {
+    case 'next': playNext(); break
+    case 'prev': playPrev(); break
+    case 'stop': stop(); break
+    case 'play-number': playNumber(c.value); break
+    case 'reserve-number': reserveNumber(c.value); break
+  }
 })
 
 async function onImport(files: File[], source: SongSource) {
@@ -96,8 +126,8 @@ async function onClear() {
     </main>
 
     <div v-if="nowPlaying" class="stage-overlay">
-      <KaraokePlayer v-if="nowPlaying.kind === 'ultrastar'" :key="nowPlaying.id" :song="nowPlaying" @close="stop" />
-      <MediaPlayer v-else :key="nowPlaying.id" :song="nowPlaying" @close="stop" />
+      <KaraokePlayer v-if="nowPlaying.kind === 'ultrastar'" :key="nowPlaying.id" :song="nowPlaying" @close="stop" @ended="onEnded" />
+      <MediaPlayer v-else :key="nowPlaying.id" :song="nowPlaying" @close="stop" @ended="onEnded" />
     </div>
   </div>
 </template>

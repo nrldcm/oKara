@@ -1,44 +1,74 @@
 <!doctype html>
-<html lang="fil">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>okara remote</title>
 <style>
   :root {
-    --bg: #0e0e18; --surface: #1c1c33; --border: #2b2b46; --text: #f4f4fb;
+    --bg: #0e0e18; --surface: #1c1c33; --surface2: #26264a; --border: #2b2b46; --text: #f4f4fb;
     --muted: #a2a2c0; --faint: #6d6d8a; --accent1: #ff5da2; --accent2: #ff9d5d; --danger: #e0455e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f5f6fb; --surface: #ffffff; --border: #e0e2ee; --text: #191a2e;
+      --bg: #f5f6fb; --surface: #ffffff; --surface2: #eceef6; --border: #e0e2ee; --text: #191a2e;
       --muted: #5c5e77; --faint: #9a9cb2; --accent1: #ff4d97; --accent2: #ff8a45; --danger: #d83a54;
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh;
-    min-height: 100dvh; display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 30px 20px; }
-  h1 { font-size: 22px; }
-  .now { text-align: center; min-height: 48px; display: flex; flex-direction: column; }
-  .now strong { font-size: 20px; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100dvh;
+    display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 22px 18px 30px;
+    max-width: 460px; margin: 0 auto; }
+  .head { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  h1 { font-size: 20px; }
+  .reserved { font-size: 12px; background: var(--surface2); border-radius: 999px; padding: 4px 10px; color: var(--muted); }
+  .now { text-align: center; min-height: 44px; display: flex; flex-direction: column; }
+  .now strong { font-size: 19px; }
   .now span { color: var(--muted); }
-  .pad { display: flex; align-items: center; gap: 18px; }
-  .btn { border: 1px solid var(--border); border-radius: 50%; width: 72px; height: 72px; font-size: 26px;
+  .display { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; }
+  .display .num { flex: 1; font-size: 34px; font-weight: 800; letter-spacing: 6px; text-align: center; color: var(--accent1); }
+  .display .bs { border: none; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+  .key { height: 62px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); font-size: 24px; font-weight: 700; cursor: pointer; }
+  .key.sub { font-size: 20px; color: var(--muted); }
+  .dial-actions { display: flex; gap: 12px; width: 100%; }
+  .act { flex: 1; height: 54px; border-radius: 14px; border: none; font-size: 17px; font-weight: 700; cursor: pointer; color: #fff; }
+  .act.play { background: linear-gradient(135deg, var(--accent1), var(--accent2)); }
+  .act.reserve { background: var(--surface2); color: var(--text); }
+  .transport { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+  .btn { border: 1px solid var(--border); border-radius: 50%; width: 62px; height: 62px; font-size: 22px;
     background: var(--surface); color: var(--text); cursor: pointer; }
-  .btn.big { width: 96px; height: 96px; font-size: 36px; border: none;
+  .btn.big { width: 78px; height: 78px; font-size: 30px; border: none;
     background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; }
-  .row { display: flex; gap: 14px; width: 100%; max-width: 340px; }
-  .btn.wide { width: 100%; height: 54px; border-radius: 14px; font-size: 16px; }
+  .row { display: flex; gap: 12px; width: 100%; }
+  .btn.wide { width: 100%; height: 50px; border-radius: 14px; font-size: 15px; }
   .btn.stop { background: var(--danger); color: #fff; border: none; }
-  .vol { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 340px; }
+  .vol { display: flex; align-items: center; gap: 12px; width: 100%; }
   .vol input { flex: 1; accent-color: var(--accent1); }
-  .status { color: var(--faint); font-size: 13px; margin-top: auto; }
+  .flash { min-height: 20px; color: var(--accent1); font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .2s; }
+  .flash.show { opacity: 1; }
+  .status { color: var(--faint); font-size: 13px; }
 </style>
 </head>
 <body>
-  <h1>🎤 okara remote</h1>
-  <div class="now" id="now"><em style="opacity:.5">Kumokonekta…</em></div>
-  <div class="pad">
+  <div class="head"><h1>🎤 okara remote</h1><span class="reserved" id="reserved" style="display:none"></span></div>
+  <div class="now" id="now"><em style="opacity:.5">Connecting…</em></div>
+
+  <div class="display">
+    <span class="num" id="num">––––</span>
+    <button class="bs" onclick="backspace()">⌫</button>
+  </div>
+
+  <div class="keypad" id="keypad"></div>
+
+  <div class="dial-actions">
+    <button class="act play" onclick="playNumber()">▶ Play</button>
+    <button class="act reserve" onclick="reserveNumber()">＋ Reserve</button>
+  </div>
+
+  <div class="transport">
     <button class="btn" onclick="cmd('prev')">⏮</button>
     <button class="btn big" id="toggle" onclick="cmd('toggle')">▶</button>
     <button class="btn" onclick="cmd('next')">⏭</button>
@@ -49,45 +79,78 @@
   </div>
   <label class="vol">🔉<input type="range" min="0" max="1" step="0.01" value="1"
     oninput="cmd('volume', Number(this.value))" />🔊</label>
+
+  <p class="flash" id="flash"></p>
   <p class="status" id="status">…</p>
 
 <script>
-  const token = new URLSearchParams(location.search).get('t')
-  const status = document.getElementById('status')
-  const now = document.getElementById('now')
-  const toggle = document.getElementById('toggle')
-  let ws
+  var token = new URLSearchParams(location.search).get('t')
+  var status = document.getElementById('status')
+  var now = document.getElementById('now')
+  var toggle = document.getElementById('toggle')
+  var numEl = document.getElementById('num')
+  var reservedEl = document.getElementById('reserved')
+  var flashEl = document.getElementById('flash')
+  var ws, dialed = '', lastMsgSeq = 0, flashTimer
+
+  var keypad = document.getElementById('keypad')
+  ;[1,2,3,4,5,6,7,8,9].forEach(function (n) { addKey(n, 'key', function () { press(String(n)) }) })
+  addKey('C', 'key sub', clearDial)
+  addKey('0', 'key', function () { press('0') })
+  addKey('⌫', 'key sub', backspace)
+
+  function addKey(label, cls, fn) {
+    var b = document.createElement('button')
+    b.className = cls; b.textContent = label; b.onclick = fn
+    keypad.appendChild(b)
+  }
+  function press(d) { if (dialed.length < 6) { dialed += d; renderDial() } }
+  function backspace() { dialed = dialed.slice(0, -1); renderDial() }
+  function clearDial() { dialed = ''; renderDial() }
+  function renderDial() { numEl.textContent = dialed || '––––' }
+  function playNumber() { if (dialed) { cmd('play-number', Number(dialed)); clearDial() } }
+  function reserveNumber() { if (dialed) { cmd('reserve-number', Number(dialed)); clearDial() } }
 
   function connect() {
-    ws = new WebSocket(`ws://${location.host}/ws?t=${token}`)
-    ws.onopen = () => { status.textContent = 'Konektado' }
-    ws.onclose = () => { status.textContent = 'Nadiskonek — sinusubukan ulit…'; setTimeout(connect, 1500) }
-    ws.onmessage = (e) => {
+    ws = new WebSocket('ws://' + location.host + '/ws?t=' + token)
+    ws.onopen = function () { status.textContent = 'Connected' }
+    ws.onclose = function () { status.textContent = 'Disconnected — retrying…'; setTimeout(connect, 1500) }
+    ws.onmessage = function (e) {
       try {
-        const msg = JSON.parse(e.data)
+        var msg = JSON.parse(e.data)
         if (msg.type === 'state') render(msg.state)
-      } catch {}
+      } catch (err) {}
     }
   }
 
   function render(s) {
     if (s.hasSong) {
-      now.innerHTML = `<strong>${escapeHtml(s.title)}</strong><span>${escapeHtml(s.artist)}</span>`
+      now.innerHTML = '<strong>' + esc(s.title) + '</strong><span>' + esc(s.artist) + '</span>'
     } else {
-      now.innerHTML = '<em style="opacity:.5">Walang tumutugtog</em>'
+      now.innerHTML = '<em style="opacity:.5">Nothing playing</em>'
     }
     toggle.textContent = s.playing ? '⏸' : '▶'
+    if (s.reserved) { reservedEl.style.display = ''; reservedEl.textContent = 'Reserved: ' + s.reserved }
+    else reservedEl.style.display = 'none'
+    if (s.messageSeq !== lastMsgSeq) { lastMsgSeq = s.messageSeq; showFlash(s.message) }
+  }
+
+  function showFlash(m) {
+    flashEl.textContent = m; flashEl.className = 'flash show'
+    if (flashTimer) clearTimeout(flashTimer)
+    flashTimer = setTimeout(function () { flashEl.className = 'flash' }, 2600)
   }
 
   function cmd(action, value) {
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'cmd', action, value }))
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'cmd', action: action, value: value }))
+  }
+  function esc(str) {
+    return String(str).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+    })
   }
 
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
-  }
-
-  if (!token) status.textContent = 'Kulang ang pairing token — i-scan ang QR ulit.'
+  if (!token) status.textContent = 'Missing pairing token — scan the QR again.'
   else connect()
 </script>
 </body>

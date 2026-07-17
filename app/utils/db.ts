@@ -1,8 +1,9 @@
 export type SongKind = 'ultrastar' | 'video' | 'audio'
-export type SongSource = 'Demo' | 'UltraStar' | 'MegaVision' | 'Magic Sing' | 'Platinum' | 'Other'
+export type SongSource = 'Demo' | 'UltraStar' | 'MegaVision' | 'Magic Sing' | 'Platinum' | 'TJ Media' | 'Other'
 
 export interface StoredSong {
   id: string
+  number: number
   title: string
   artist: string
   kind: SongKind

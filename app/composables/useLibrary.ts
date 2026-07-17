@@ -66,6 +66,7 @@ async function detectSongs(files: File[], source: SongSource): Promise<StoredSon
 
     out.push({
       id: crypto.randomUUID(),
+      number: 0,
       title: parsed.title || stripExt(txtFile.name),
       artist: parsed.artist || 'Unknown',
       kind: 'ultrastar',
@@ -84,6 +85,7 @@ async function detectSongs(files: File[], source: SongSource): Promise<StoredSon
     if (VIDEO_EXT.includes(e)) {
       out.push({
         id: crypto.randomUUID(),
+        number: 0,
         title: stripExt(f.name),
         artist: source === 'Demo' ? 'Import' : source,
         kind: 'video',
@@ -95,6 +97,7 @@ async function detectSongs(files: File[], source: SongSource): Promise<StoredSon
     } else if (AUDIO_EXT.includes(e)) {
       out.push({
         id: crypto.randomUUID(),
+        number: 0,
         title: stripExt(f.name),
         artist: source === 'Demo' ? 'Import' : source,
         kind: 'audio',
@@ -121,17 +124,30 @@ export function useLibrary() {
       await dbPut(demo)
       stored = [...stored, demo]
     }
+    let maxN = stored.reduce((m, s) => Math.max(m, s.number || 0), 1000)
+    for (const s of stored) {
+      if (!s.number) { s.number = ++maxN; await dbPut(s) }
+    }
     songs.value = stored
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(toRuntime)
     loaded.value = true
   }
 
+  function nextNumber(): number {
+    return songs.value.reduce((m, s) => Math.max(m, s.number || 0), 1000) + 1
+  }
+
   async function importFiles(files: File[], source: SongSource): Promise<number> {
     const detected = await detectSongs(files, source)
-    for (const s of detected) await dbPut(s)
+    let n = nextNumber()
+    for (const s of detected) { s.number = n++; await dbPut(s) }
     songs.value = [...detected.map(toRuntime), ...songs.value]
     return detected.length
+  }
+
+  function findByNumber(num: number): RuntimeSong | undefined {
+    return songs.value.find((s) => s.number === num)
   }
 
   async function remove(id: string) {
@@ -149,5 +165,5 @@ export function useLibrary() {
     await load()
   }
 
-  return { songs, loaded, load, importFiles, remove, clearAll }
+  return { songs, loaded, load, importFiles, remove, clearAll, findByNumber }
 }

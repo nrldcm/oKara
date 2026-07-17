@@ -11,11 +11,12 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const folderInput = ref<HTMLInputElement | null>(null)
 
 const sources: { value: SongSource; label: string; hint: string }[] = [
-  { value: 'UltraStar', label: 'UltraStar', hint: '.txt + audio — may scoring' },
-  { value: 'Magic Sing', label: 'Magic Sing', hint: 'video files mula DVD' },
-  { value: 'Platinum', label: 'Platinum', hint: 'video files mula DVD' },
-  { value: 'MegaVision', label: 'MegaVision', hint: 'video files mula DVD' },
-  { value: 'Other', label: 'Iba pa', hint: 'kahit anong audio/video' },
+  { value: 'UltraStar', label: 'UltraStar', hint: '.txt + audio — has scoring' },
+  { value: 'Magic Sing', label: 'Magic Sing', hint: 'video files from DVD' },
+  { value: 'Platinum', label: 'Platinum', hint: 'video files from DVD' },
+  { value: 'MegaVision', label: 'MegaVision', hint: 'video files from DVD' },
+  { value: 'TJ Media', label: 'TJ Media', hint: 'video files from DVD' },
+  { value: 'Other', label: 'Other', hint: 'any audio/video' },
 ]
 
 async function handle(files: File[]) {
@@ -27,7 +28,7 @@ async function handle(files: File[]) {
     setTimeout(() => resolve(files.length), 0)
   })
   busy.value = false
-  result.value = `Na-import: ${count} file${count > 1 ? 's' : ''}. Nasa Library na. 🎉`
+  result.value = `Imported ${count} file${count > 1 ? 's' : ''}. It's in your Library now. 🎉`
 }
 
 function onDrop(e: DragEvent) {
@@ -42,12 +43,12 @@ function onPick(e: Event) {
 
 <template>
   <section class="imp">
-    <h1>Import ng kanta</h1>
+    <h1>Import songs</h1>
     <p class="lead">
-      I-drag ang mga file dito o pumili sa ibaba. Para sa DVD ng karaoke machine
-      (Magic Sing / Platinum / MegaVision), i-import ang mga <strong>video file</strong> nito
-      — mapapatugtog sila na may voice on/off. Para sa full scoring, gumamit ng
-      <strong>UltraStar</strong> na kanta (.txt + audio).
+      Drag files here or pick them below. For karaoke machine DVDs
+      (Magic Sing / Platinum / MegaVision / TJ Media), import their
+      <strong>video files</strong> — they play back with voice on/off. For full
+      scoring, use an <strong>UltraStar</strong> song (.txt + audio).
     </p>
 
     <div class="field">
@@ -74,12 +75,12 @@ function onPick(e: Event) {
       @drop.prevent="onDrop"
     >
       <div class="drop__icon">⬇️</div>
-      <p><strong>I-drag ang files dito</strong></p>
+      <p><strong>Drag files here</strong></p>
       <div class="drop__btns">
-        <button @click="fileInput?.click()">Pumili ng files</button>
-        <button class="ghost" @click="folderInput?.click()">Pumili ng folder</button>
+        <button @click="fileInput?.click()">Choose files</button>
+        <button class="ghost" @click="folderInput?.click()">Choose folder</button>
       </div>
-      <p v-if="busy" class="status">Ini-import…</p>
+      <p v-if="busy" class="status">Importing…</p>
       <p v-else-if="result" class="status ok">{{ result }}</p>
     </div>
 
@@ -88,11 +89,11 @@ function onPick(e: Event) {
     <input ref="folderInput" type="file" hidden webkitdirectory multiple @change="onPick" />
 
     <div class="note">
-      <h3>Paalala tungkol sa DVD/chip data</h3>
+      <h3>About DVD / chip data</h3>
       <ul>
-        <li>Video files (.mp4, .avi, .mpg, .dat, .vob) mula sa DVD — ✅ ma-import at ma-play.</li>
-        <li>Naka-encrypt na chip data (hal. Magic Sing cartridge) — ❌ hindi ma-extract; proprietary ito.</li>
-        <li>Gamitin lang ang mga file na legal mong pag-aari.</li>
+        <li>Video files (.mp4, .avi, .mpg, .dat, .vob) from a DVD — ✅ import and play.</li>
+        <li>Encrypted chip data (e.g. Magic Sing / TJ cartridge) — ❌ can't be extracted; it's proprietary.</li>
+        <li>Only use files you legally own.</li>
       </ul>
     </div>
   </section>

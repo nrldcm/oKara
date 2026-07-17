@@ -25,7 +25,7 @@ function doClear() {
     <h1>Settings</h1>
 
     <div class="block">
-      <h3>Mikropono</h3>
+      <h3>Microphone</h3>
       <div class="row">
         <select v-model="settings.micDeviceId" class="input">
           <option value="">Default</option>
@@ -33,12 +33,12 @@ function doClear() {
             {{ m.label || 'Mic ' + m.deviceId.slice(0, 6) }}
           </option>
         </select>
-        <button class="mini" @click="refreshMics">I-refresh</button>
+        <button class="mini" @click="refreshMics">Refresh</button>
       </div>
     </div>
 
     <div class="block">
-      <h3>Default na channel (video/audio)</h3>
+      <h3>Default channel (video/audio)</h3>
       <div class="segmented">
         <button
           v-for="opt in (['stereo', 'left', 'right'] as const)"
@@ -54,7 +54,7 @@ function doClear() {
       <label class="switch">
         <input type="checkbox" :checked="settings.scoringTolerance === 1"
           @change="settings.scoringTolerance = ($event.target as HTMLInputElement).checked ? 1 : 0" />
-        Payagan ang ±1 semitone (mas madaling makakuha ng puntos)
+        Allow ±1 semitone (easier to score)
       </label>
     </div>
 
@@ -64,12 +64,12 @@ function doClear() {
 
     <div class="block danger">
       <h3>Library</h3>
-      <p>Buburahin ang lahat ng na-import na kanta (mananatili ang demo).</p>
-      <button v-if="!confirmClear" class="del" @click="confirmClear = true">Burahin ang library</button>
+      <p>This deletes all imported songs (the demo stays).</p>
+      <button v-if="!confirmClear" class="del" @click="confirmClear = true">Clear library</button>
       <div v-else class="confirm">
-        <span>Sigurado ka?</span>
-        <button class="del" @click="doClear">Oo, burahin</button>
-        <button class="mini" @click="confirmClear = false">Hindi</button>
+        <span>Are you sure?</span>
+        <button class="del" @click="doClear">Yes, clear</button>
+        <button class="mini" @click="confirmClear = false">No</button>
       </div>
     </div>
 

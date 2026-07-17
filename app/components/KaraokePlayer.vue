@@ -4,7 +4,7 @@ import { beatToMs, parseUltraStar, type Line, type Note } from '~/utils/ultrasta
 import { midiToFreq, pitchClassDistance, relativePitchToMidi } from '~/utils/pitch'
 
 const props = defineProps<{ song: RuntimeSong }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; ended: [] }>()
 
 const { settings } = useSettings()
 const { theme } = useTheme()
@@ -191,6 +191,7 @@ function finish() {
   finished.value = true
   if (isSynth) stopSynth()
   cancelAnimationFrame(raf)
+  emit('ended')
 }
 
 interface Palette {
@@ -365,10 +366,10 @@ const stars = computed(() => Math.round((percent.value / 100) * 5))
 const rating = computed(() => {
   const p = percent.value
   if (p >= 90) return 'Superstar! ⭐'
-  if (p >= 75) return 'Sikat ka! 🎤'
-  if (p >= 50) return 'Ayos ah! 👍'
-  if (p >= 25) return 'Keri lang 🙂'
-  return 'Practice pa 💪'
+  if (p >= 75) return "You're a star! 🎤"
+  if (p >= 50) return 'Nice! 👍'
+  if (p >= 25) return 'Not bad 🙂'
+  return 'Keep practicing 💪'
 })
 
 onMounted(() => {
@@ -387,7 +388,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="player">
     <header class="player__bar">
-      <button class="icon-btn" @click="emit('close')">← Balik</button>
+      <button class="icon-btn" @click="emit('close')">← Back</button>
       <div class="player__title">
         <strong>{{ props.song.title }}</strong>
         <span>{{ props.song.artist }}</span>
@@ -398,9 +399,9 @@ onBeforeUnmount(() => {
     <div class="stage">
       <canvas ref="canvas" />
       <div v-if="!playing && !finished" class="overlay">
-        <button class="big-btn" @click="play">▶ Kanta na!</button>
+        <button class="big-btn" @click="play">▶ Sing!</button>
         <p class="hint">
-          {{ isSynth ? 'Synth melody — sing along, i-detect ang pitch mo.' : 'I-play at sabayan ang kanta.' }}
+          {{ isSynth ? 'Synth melody — sing along and it detects your pitch.' : 'Play and sing along.' }}
         </p>
       </div>
 
@@ -411,7 +412,7 @@ onBeforeUnmount(() => {
         </div>
         <p class="final-score">{{ score.toLocaleString() }} <small>/ {{ MAX_SCORE.toLocaleString() }}</small></p>
         <div class="result-actions">
-          <button class="big-btn" @click="() => { restart(); play() }">Ulit</button>
+          <button class="big-btn" @click="() => { restart(); play() }">Again</button>
           <button class="icon-btn" @click="emit('close')">Library</button>
         </div>
       </div>

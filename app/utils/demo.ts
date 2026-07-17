@@ -26,6 +26,7 @@ E`
 export function demoSong(): StoredSong {
   return {
     id: 'demo-bahay-kubo',
+    number: 1001,
     title: 'Bahay Kubo (Demo)',
     artist: 'Folk / okara synth',
     kind: 'ultrastar',

@@ -20,11 +20,11 @@ const badge = (s: RuntimeSong) =>
   <section class="lib">
     <div class="lib__head">
       <h1>Library</h1>
-      <input v-model="query" class="search" placeholder="Hanapin ang kanta o artist…" />
+      <input v-model="query" class="search" placeholder="Search song or artist…" />
     </div>
 
     <p v-if="!filtered.length" class="empty">
-      Walang kanta dito. Pumunta sa <strong>Import</strong> para magdagdag.
+      No songs yet. Go to <strong>Import</strong> to add some.
     </p>
 
     <div class="grid">
@@ -32,7 +32,8 @@ const badge = (s: RuntimeSong) =>
         <div class="thumb" :style="s.coverUrl ? { backgroundImage: `url(${s.coverUrl})` } : {}">
           <span v-if="!s.coverUrl" class="thumb__icon">{{ s.kind === 'video' ? '📺' : '🎤' }}</span>
           <span class="thumb__badge" :class="{ score: s.hasScoring }">{{ badge(s) }}</span>
-          <button class="del" title="Tanggalin" @click.stop="emit('remove', s.id)">✕</button>
+          <span class="thumb__num">#{{ s.number }}</span>
+          <button class="del" title="Remove" @click.stop="emit('remove', s.id)">✕</button>
         </div>
         <div class="meta">
           <strong :title="s.title">{{ s.title }}</strong>
@@ -63,6 +64,9 @@ const badge = (s: RuntimeSong) =>
 .thumb__badge { position: absolute; top: 8px; left: 8px; font-size: 11px; padding: 3px 8px; border-radius: 999px;
   background: rgba(0, 0, 0, .55); color: #fff; }
 .thumb__badge.score { background: var(--accent); }
+.thumb__num { position: absolute; bottom: 8px; left: 8px; font-size: 12px; font-weight: 700;
+  font-variant-numeric: tabular-nums; padding: 2px 8px; border-radius: 8px; background: rgba(0, 0, 0, .55);
+  color: #fff; }
 .del { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; border: none;
   background: rgba(0, 0, 0, .55); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s; }
 .card:hover .del { opacity: 1; }

@@ -31,7 +31,7 @@ export function usePitch() {
       src.connect(analyser)
       active.value = true
     } catch (e: any) {
-      error.value = e?.message || 'Dili ma-access ang mic'
+      error.value = e?.message || 'Cannot access the microphone'
       active.value = false
     }
   }

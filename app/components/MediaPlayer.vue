@@ -2,7 +2,7 @@
 import type { RuntimeSong } from '~/composables/useLibrary'
 
 const props = defineProps<{ song: RuntimeSong }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; ended: [] }>()
 const { settings } = useSettings()
 
 const bus = useRemoteBus()
@@ -53,6 +53,11 @@ function onPause() {
   bus.state.value = { ...bus.state.value, playing: false }
 }
 
+function onEnded() {
+  bus.state.value = { ...bus.state.value, playing: false }
+  emit('ended')
+}
+
 watch(() => bus.command.value.seq, () => {
   const el = mediaEl.value
   if (!el) return
@@ -78,7 +83,7 @@ const channelLabels: Record<string, string> = {
 <template>
   <div class="mplayer">
     <header class="mplayer__bar">
-      <button class="icon-btn" @click="emit('close')">← Balik</button>
+      <button class="icon-btn" @click="emit('close')">← Back</button>
       <div class="mplayer__title">
         <strong>{{ props.song.title }}</strong>
         <span>{{ props.song.artist }} · {{ props.song.source }}</span>
@@ -86,10 +91,10 @@ const channelLabels: Record<string, string> = {
     </header>
 
     <div class="stage">
-      <video v-if="isVideo" ref="mediaEl" :src="props.song.videoUrl" controls @play="onPlay" @pause="onPause" />
+      <video v-if="isVideo" ref="mediaEl" :src="props.song.videoUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" />
       <div v-else class="audio-stage">
         <div class="disc">🎵</div>
-        <audio ref="mediaEl" :src="props.song.audioUrl" controls @play="onPlay" @pause="onPause" />
+        <audio ref="mediaEl" :src="props.song.audioUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" />
       </div>
     </div>
 
@@ -106,7 +111,7 @@ const channelLabels: Record<string, string> = {
         </div>
       </div>
       <p class="tip">
-        Tip: kung naka-burn ang boses sa isang channel, pumili ng "Left" o "Right" para sa minus-one.
+        Tip: if the guide vocals are on one channel, pick "Left" or "Right" for minus-one.
       </p>
     </footer>
   </div>
