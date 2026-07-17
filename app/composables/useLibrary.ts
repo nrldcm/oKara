@@ -11,6 +11,37 @@ export interface RuntimeSong extends StoredSong {
   coverUrl?: string
 }
 
+/** One import candidate: a browser File (web) or an on-disk library file. */
+interface ImportEntry {
+  name: string
+  file?: File
+  path?: string
+}
+
+/** Bridge surface provided by Electron preload / the Android shim. */
+interface LibraryBridge {
+  info(): Promise<{ dir: string; canChooseDir: boolean }>
+  chooseDir(): Promise<{ dir: string } | null>
+  pickImport(kind: 'files' | 'folder'): Promise<{ name: string; path: string }[]>
+  importPaths(paths: string[]): Promise<{ name: string; path: string }[]>
+  list(): Promise<{ name: string; path: string }[]>
+  readText(path: string): Promise<string>
+  deleteFiles(paths: string[]): Promise<void>
+}
+
+function bridge(): LibraryBridge | undefined {
+  if (!import.meta.client) return undefined
+  return (window as any).okara?.library
+}
+
+function toMediaUrl(path: string): string | undefined {
+  return (window as any).okara?.toMediaUrl?.(path)
+}
+
+export function libraryFolderAvailable(): boolean {
+  return !!bridge()
+}
+
 const AUDIO_EXT = ['mp3', 'm4a', 'ogg', 'oga', 'opus', 'wav', 'aac', 'flac']
 const VIDEO_EXT = ['mp4', 'webm', 'ogv', 'mov', 'avi', 'mkv', 'mpg', 'mpeg', 'dat', 'vob', 'm4v']
 const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif']
@@ -32,86 +63,99 @@ function stripExt(name: string): string {
 
 function toRuntime(song: StoredSong): RuntimeSong {
   const rt: RuntimeSong = { ...song }
-  if (song.audio) rt.audioUrl = URL.createObjectURL(song.audio)
-  if (song.video) rt.videoUrl = URL.createObjectURL(song.video)
-  if (song.cover) rt.coverUrl = URL.createObjectURL(song.cover)
+  if (song.audioPath) rt.audioUrl = toMediaUrl(song.audioPath)
+  else if (song.audio) rt.audioUrl = URL.createObjectURL(song.audio)
+  if (song.videoPath) rt.videoUrl = toMediaUrl(song.videoPath)
+  else if (song.video) rt.videoUrl = URL.createObjectURL(song.video)
+  if (song.coverPath) rt.coverUrl = toMediaUrl(song.coverPath)
+  else if (song.cover) rt.coverUrl = URL.createObjectURL(song.cover)
   return rt
 }
 
 function revoke(song: RuntimeSong) {
   for (const url of [song.audioUrl, song.videoUrl, song.coverUrl]) {
-    if (url) URL.revokeObjectURL(url)
+    if (url && url.startsWith('blob:')) URL.revokeObjectURL(url)
   }
 }
 
-async function detectSongs(files: File[], source: SongSource): Promise<StoredSong[]> {
-  const pool = [...files]
+async function readEntryText(e: ImportEntry): Promise<string> {
+  if (e.file) return e.file.text()
+  if (e.path) return bridge()!.readText(e.path)
+  return ''
+}
+
+function assign(song: StoredSong, slot: 'audio' | 'video' | 'cover', entry?: ImportEntry) {
+  if (!entry) return
+  if (entry.path) {
+    song[`${slot}Path`] = entry.path
+    song.paths!.push(entry.path)
+  } else if (entry.file) {
+    song[slot] = entry.file
+  }
+}
+
+async function detectSongs(entries: ImportEntry[], source: SongSource): Promise<StoredSong[]> {
+  const pool = [...entries]
   const out: StoredSong[] = []
   const now = Date.now()
 
-  const take = (pred: (f: File) => boolean): File | undefined => {
+  const take = (pred: (e: ImportEntry) => boolean): ImportEntry | undefined => {
     const idx = pool.findIndex(pred)
     if (idx === -1) return undefined
     return pool.splice(idx, 1)[0]
   }
 
-  const txts = files.filter((f) => ext(f.name) === 'txt')
-  for (const txtFile of txts) {
-    const i = pool.indexOf(txtFile)
+  const txts = entries.filter((e) => ext(e.name) === 'txt')
+  for (const txtEntry of txts) {
+    const i = pool.indexOf(txtEntry)
     if (i !== -1) pool.splice(i, 1)
-    const txt = await txtFile.text()
+    const txt = await readEntryText(txtEntry)
     const parsed = parseUltraStar(txt)
 
     const byName = (target?: string) =>
-      target ? take((f) => baseName(f.name).toLowerCase() === baseName(target).toLowerCase()) : undefined
+      target ? take((e) => baseName(e.name).toLowerCase() === baseName(target).toLowerCase()) : undefined
 
-    const audio = byName(parsed.audioFile) || take((f) => AUDIO_EXT.includes(ext(f.name)))
-    const video = byName(parsed.videoFile) || take((f) => VIDEO_EXT.includes(ext(f.name)))
-    const cover = byName(parsed.coverFile) || take((f) => IMAGE_EXT.includes(ext(f.name)))
+    const audio = byName(parsed.audioFile) || take((e) => AUDIO_EXT.includes(ext(e.name)))
+    const video = byName(parsed.videoFile) || take((e) => VIDEO_EXT.includes(ext(e.name)))
+    const cover = byName(parsed.coverFile) || take((e) => IMAGE_EXT.includes(ext(e.name)))
 
-    out.push({
+    const song: StoredSong = {
       id: uid(),
       number: 0,
-      title: parsed.title || stripExt(txtFile.name),
+      title: parsed.title || stripExt(txtEntry.name),
       artist: parsed.artist || 'Unknown',
       kind: 'ultrastar',
       source: source === 'Demo' ? 'UltraStar' : source,
       hasScoring: true,
       createdAt: now,
       txt,
-      audio: audio ?? undefined,
-      video: video ?? undefined,
-      cover: cover ?? undefined,
-    })
+      paths: txtEntry.path ? [txtEntry.path] : [],
+    }
+    assign(song, 'audio', audio)
+    assign(song, 'video', video)
+    assign(song, 'cover', cover)
+    if (!song.paths!.length) delete song.paths
+    out.push(song)
   }
 
-  for (const f of [...pool]) {
-    const e = ext(f.name)
-    if (VIDEO_EXT.includes(e)) {
-      out.push({
-        id: uid(),
-        number: 0,
-        title: stripExt(f.name),
-        artist: source === 'Demo' ? 'Import' : source,
-        kind: 'video',
-        source: source === 'Demo' ? 'Other' : source,
-        hasScoring: false,
-        createdAt: now,
-        video: f,
-      })
-    } else if (AUDIO_EXT.includes(e)) {
-      out.push({
-        id: uid(),
-        number: 0,
-        title: stripExt(f.name),
-        artist: source === 'Demo' ? 'Import' : source,
-        kind: 'audio',
-        source: source === 'Demo' ? 'Other' : source,
-        hasScoring: false,
-        createdAt: now,
-        audio: f,
-      })
+  for (const e of [...pool]) {
+    const x = ext(e.name)
+    const kind = VIDEO_EXT.includes(x) ? 'video' : AUDIO_EXT.includes(x) ? 'audio' : null
+    if (!kind) continue
+    const song: StoredSong = {
+      id: uid(),
+      number: 0,
+      title: stripExt(e.name),
+      artist: source === 'Demo' ? 'Import' : source,
+      kind,
+      source: source === 'Demo' ? 'Other' : source,
+      hasScoring: false,
+      createdAt: now,
+      paths: [],
     }
+    assign(song, kind === 'video' ? 'video' : 'audio', e)
+    if (!song.paths!.length) delete song.paths
+    out.push(song)
   }
 
   return out
@@ -120,6 +164,33 @@ async function detectSongs(files: File[], source: SongSource): Promise<StoredSon
 export function useLibrary() {
   const songs = useState<RuntimeSong[]>('okara-songs', () => [])
   const loaded = useState<boolean>('okara-songs-loaded', () => false)
+
+  async function store(detected: StoredSong[]) {
+    let n = nextNumber()
+    for (const s of detected) { s.number = n++; await dbPut(s) }
+    songs.value = [...detected.map(toRuntime), ...songs.value]
+  }
+
+  /**
+   * Sync with the on-disk library folder: any file in the folder that no
+   * stored song references yet gets imported (so bulk-copying files into the
+   * folder, or reinstalling the app over an existing folder, just works).
+   */
+  async function scanFolder() {
+    const lib = bridge()
+    if (!lib) return
+    try {
+      const files = await lib.list()
+      const known = new Set<string>()
+      for (const s of songs.value) for (const p of s.paths ?? []) known.add(p)
+      const fresh = files.filter((f) => !known.has(f.path))
+      if (!fresh.length) return
+      const detected = await detectSongs(fresh, 'Other')
+      if (detected.length) await store(detected)
+    } catch (e) {
+      console.error('library folder scan failed', e)
+    }
+  }
 
   async function load() {
     if (loaded.value) return
@@ -137,17 +208,49 @@ export function useLibrary() {
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(toRuntime)
     loaded.value = true
+    await scanFolder()
   }
 
   function nextNumber(): number {
     return songs.value.reduce((m, s) => Math.max(m, s.number || 0), 1000) + 1
   }
 
+  /** Import browser File objects (drag-and-drop / file inputs on the web). */
   async function importFiles(files: File[], source: SongSource): Promise<number> {
-    const detected = await detectSongs(files, source)
-    let n = nextNumber()
-    for (const s of detected) { s.number = n++; await dbPut(s) }
-    songs.value = [...detected.map(toRuntime), ...songs.value]
+    const lib = bridge()
+    if (lib) {
+      // Copy the dropped files into the library folder first so they are
+      // merged into the one big on-disk library.
+      const getPath = (window as any).okara?.getPathForFile
+      const paths: string[] = []
+      let allResolved = true
+      for (const f of files) {
+        const p = getPath?.(f)
+        if (p) paths.push(p)
+        else allResolved = false
+      }
+      if (allResolved && paths.length) {
+        const entries = await lib.importPaths(paths)
+        const detected = await detectSongs(entries, source)
+        await store(detected)
+        return detected.length
+      }
+      // Fall through: no real paths available (e.g. Android WebView files) —
+      // keep them as blobs in IndexedDB rather than failing the import.
+    }
+    const detected = await detectSongs(files.map((f) => ({ name: f.name, file: f })), source)
+    await store(detected)
+    return detected.length
+  }
+
+  /** Import via the native file/folder picker (desktop + Android). */
+  async function importFromPicker(kind: 'files' | 'folder', source: SongSource): Promise<number> {
+    const lib = bridge()
+    if (!lib) return 0
+    const entries = await lib.pickImport(kind)
+    if (!entries.length) return 0
+    const detected = await detectSongs(entries, source)
+    await store(detected)
     return detected.length
   }
 
@@ -157,12 +260,23 @@ export function useLibrary() {
 
   async function remove(id: string) {
     const target = songs.value.find((s) => s.id === id)
-    if (target) revoke(target)
+    if (target) {
+      revoke(target)
+      // The folder is the source of truth: deleting a folder-backed song
+      // removes its files too, otherwise the next scan would re-import it.
+      if (target.paths?.length) {
+        try { await bridge()?.deleteFiles(target.paths) } catch (e) { console.error(e) }
+      }
+    }
     await dbDelete(id)
     songs.value = songs.value.filter((s) => s.id !== id)
   }
 
   async function clearAll() {
+    const allPaths = songs.value.flatMap((s) => s.paths ?? [])
+    if (allPaths.length) {
+      try { await bridge()?.deleteFiles(allPaths) } catch (e) { console.error(e) }
+    }
     songs.value.forEach(revoke)
     await dbClear()
     songs.value = []
@@ -170,5 +284,5 @@ export function useLibrary() {
     await load()
   }
 
-  return { songs, loaded, load, importFiles, remove, clearAll, findByNumber }
+  return { songs, loaded, load, importFiles, importFromPicker, remove, clearAll, findByNumber }
 }

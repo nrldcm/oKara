@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(RemoteServerPlugin.class);
+        registerPlugin(LibraryPlugin.class);
         super.onCreate(savedInstanceState);
 
         // A karaoke host must not dim or lock mid-song.

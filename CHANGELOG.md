@@ -13,6 +13,28 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.3.0] - 2026-07-17
+
+### Added
+
+- **Mic tab on the phone remote** — switch the mic mode right from the phone
+  (Off / Clean / Karaoke / Pro; Off kills the mic so there's no accidental
+  speaker feedback) plus the full soundboard: live-monitor toggle, FX presets,
+  and reverb / echo / echo-time / bass / treble / mic-volume sliders. All
+  controls are two-way synced with the host's Vocal effects panel, so there's
+  no need to walk to the host screen to configure the mic.
+- **Library folder** — imports are now copied into one on-disk folder so the
+  whole collection is merged in one place and survives reinstalls:
+  - Desktop: defaults to `Music/okara-library`, customizable in Settings
+    (native imports are copied in; drag-and-drop too).
+  - Android: fixed app-external `library` folder (visible over USB; back it up
+    before uninstalling).
+  - Bulk-copying files straight into the folder works — they're picked up and
+    numbered on the next launch. Deleting a song in the app deletes its files
+    from the folder (the folder is the source of truth).
+  - Songs play directly from disk (no more duplicate blob storage for new
+    imports); existing IndexedDB-stored songs keep working.
+
 ## [0.2.0] - 2026-07-17
 
 ### Added
@@ -64,6 +86,7 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/nrldcm/okara/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nrldcm/okara/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nrldcm/okara/releases/tag/v0.1.0

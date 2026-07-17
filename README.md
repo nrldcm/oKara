@@ -23,8 +23,13 @@ real-time **pitch scoring**, **vocal effects** (reverb/echo/EQ), and a
   - audio files → simple playback
 - 🔢 **Number-pad phone remote** — scan a QR to turn a phone into a karaoke
   remote: dial a song number to **Play** now or **Reserve** to a queue, plus
-  play / pause / next / previous / stop / volume.
-- 💾 **Persistent library** — stored in IndexedDB; each song gets a dial number.
+  play / pause / next / previous / stop / volume — and a **Mic tab** with mic
+  modes (Off / Clean / Karaoke / Pro) and the full soundboard (reverb, echo,
+  EQ, mic volume), synced live with the host.
+- 💾 **Persistent library** — on desktop/Android, imports are merged into one
+  on-disk **library folder** (customizable on desktop) that survives
+  reinstalls; bulk-copy files into it and they're picked up on launch. Each
+  song gets a dial number. (Pure web mode stores songs in IndexedDB.)
 - 🌗 **Light & dark themes** — lively accent, neutral surfaces; follows the
   system preference and is mobile-friendly.
 

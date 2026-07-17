@@ -1,6 +1,6 @@
 {
   "name": "okara",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Open karaoke web app — UltraStar player, pitch scoring, and QR phone remote.",

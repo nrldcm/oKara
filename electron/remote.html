@@ -71,6 +71,25 @@
   .flash.show { opacity: 1; }
   .status { color: var(--faint); font-size: 13px; margin-top: auto; }
   .hidden { display: none !important; }
+  .mic { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .mic-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mode { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px;
+    border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    cursor: pointer; font-size: 13px; font-weight: 600; }
+  .mode .ic { font-size: 18px; }
+  .mode.active { background: var(--accent1); color: #fff; border-color: var(--accent1); }
+  .mode.off.active { background: var(--danger); border-color: var(--danger); }
+  .mic-hint { font-size: 12px; color: var(--muted); text-align: center; min-height: 15px; margin-top: -6px; }
+  .monitor { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 15px; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  .preset { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); cursor: pointer; font-size: 13px; }
+  .preset.active { background: var(--accent1); color: #fff; border-color: var(--accent1); }
+  .sliders { display: flex; flex-direction: column; gap: 12px; }
+  .fx-slider { display: flex; flex-direction: column; gap: 6px; }
+  .fx-slider .top { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  .fx-slider .top em { font-style: normal; color: var(--text); }
+  .fx-slider input { width: 100%; accent-color: var(--accent1); }
 </style>
 </head>
 <body>
@@ -78,6 +97,7 @@
   <div class="tabs">
     <button id="tab-remote" class="active" onclick="setTab('remote')"><span data-icon="grid-3x3-gap-fill"></span> Remote</button>
     <button id="tab-queue" onclick="setTab('queue')"><span data-icon="list-ul"></span> Queue<span class="count hidden" id="qcount"></span></button>
+    <button id="tab-mic" onclick="setTab('mic')"><span data-icon="mic-fill"></span> Mic</button>
   </div>
   <div class="now" id="now"><em style="opacity:.5">Connecting…</em></div>
 
@@ -107,6 +127,17 @@
 
   <div id="queueTab" class="queue hidden"></div>
 
+  <div id="micTab" class="mic hidden">
+    <div class="mic-modes" id="micModes"></div>
+    <p class="mic-hint" id="micHint"></p>
+    <label class="monitor">
+      <input type="checkbox" id="monitorBox" onchange="cmd('fx-monitor', this.checked ? 1 : 0)" />
+      <span><span data-icon="headphones"></span> Hear my voice (live monitor)</span>
+    </label>
+    <div class="presets" id="fxPresets"></div>
+    <div class="sliders" id="fxSliders"></div>
+  </div>
+
   <p class="flash" id="flash"></p>
   <p class="status" id="status">…</p>
 
@@ -127,7 +158,9 @@
     'volume-up-fill': '<path d="M11.536 14.01A8.47 8.47 0 0 0 14.026 8a8.47 8.47 0 0 0-2.49-6.01l-.708.707A7.48 7.48 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303z"/><path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.48 5.48 0 0 1 11.025 8a5.48 5.48 0 0 1-1.61 3.89z"/><path d="M8.707 11.182A4.5 4.5 0 0 0 10.025 8a4.5 4.5 0 0 0-1.318-3.182L8 5.525A3.5 3.5 0 0 1 9.025 8 3.5 3.5 0 0 1 8 10.475zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06"/>',
     'caret-up-fill': '<path d="m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z"/>',
     'caret-down-fill': '<path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>',
-    'x-lg': '<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>'
+    'x-lg': '<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>',
+    'mic-mute-fill': '<path d="M5 3a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0z"/><path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5"/><path d="M1.5 1.5l13 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    'headphones': '<path d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v6a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5"/>'
   }
   function svg(name) { return '<svg class="ic" viewBox="0 0 16 16">' + (ICONS[name] || '') + '</svg>' }
   document.querySelectorAll('[data-icon]').forEach(function (el) { el.innerHTML = svg(el.getAttribute('data-icon')) })
@@ -158,8 +191,10 @@
     tab = t; confirmIdx = null
     document.getElementById('tab-remote').className = t === 'remote' ? 'active' : ''
     document.getElementById('tab-queue').className = t === 'queue' ? 'active' : ''
+    document.getElementById('tab-mic').className = t === 'mic' ? 'active' : ''
     document.getElementById('remoteTab').className = t === 'remote' ? '' : 'hidden'
     queueTab.className = t === 'queue' ? 'queue' : 'queue hidden'
+    document.getElementById('micTab').className = t === 'mic' ? 'mic' : 'mic hidden'
     renderQueue()
   }
   function press(d) { if (dialed.length < 6) { dialed += d; renderDial() } }
@@ -187,7 +222,71 @@
     lastList = s.reservedList || []
     confirmIdx = null
     renderQueue()
+    if (s.fx) renderMic(s.fx)
     if (s.messageSeq !== lastMsgSeq) { lastMsgSeq = s.messageSeq; showFlash(s.message) }
+  }
+
+  // ---- Mic / soundboard tab (synced with the host's Vocal effects panel) ----
+  var MIC_MODES = ['Off', 'Clean', 'Karaoke', 'Pro']
+  var FX_PRESET_NAMES = ['Off', 'Karaoke', 'Echo Mic', 'Concert Hall', 'Studio']
+  var FX_SLIDERS = [
+    { action: 'fx-volume', key: 'volume', label: 'Mic volume', min: 0, max: 1, step: 0.01, fmt: function (v) { return Math.round(v * 100) + '%' } },
+    { action: 'fx-reverb', key: 'reverb', label: 'Reverb', min: 0, max: 1, step: 0.01, fmt: function (v) { return Math.round(v * 100) + '%' } },
+    { action: 'fx-echo', key: 'echo', label: 'Echo', min: 0, max: 1, step: 0.01, fmt: function (v) { return Math.round(v * 100) + '%' } },
+    { action: 'fx-echo-time', key: 'echoTime', label: 'Echo time', min: 0.08, max: 0.6, step: 0.01, fmt: function (v) { return Math.round(v * 1000) + 'ms' } },
+    { action: 'fx-bass', key: 'bass', label: 'Bass', min: -12, max: 12, step: 1, fmt: function (v) { return (v > 0 ? '+' : '') + v + 'dB' } },
+    { action: 'fx-treble', key: 'treble', label: 'Treble', min: -12, max: 12, step: 1, fmt: function (v) { return (v > 0 ? '+' : '') + v + 'dB' } }
+  ]
+  var modeBtns = {}, presetBtns = {}, sliderEls = {}
+  var micHint = document.getElementById('micHint')
+  var monitorBox = document.getElementById('monitorBox')
+
+  MIC_MODES.forEach(function (m) {
+    var b = document.createElement('button')
+    b.className = 'mode' + (m === 'Off' ? ' off' : '')
+    b.innerHTML = svg(m === 'Off' ? 'mic-mute-fill' : 'mic-fill') + m
+    b.onclick = function () { cmd('mic-mode', m) }
+    modeBtns[m] = b
+    document.getElementById('micModes').appendChild(b)
+  })
+  FX_PRESET_NAMES.forEach(function (p) {
+    var b = btn(p, 'preset', function () { cmd('fx-preset', p) })
+    presetBtns[p] = b
+    document.getElementById('fxPresets').appendChild(b)
+  })
+  FX_SLIDERS.forEach(function (s) {
+    var wrap = document.createElement('label')
+    wrap.className = 'fx-slider'
+    wrap.innerHTML = '<span class="top"><span>' + s.label + '</span><em></em></span>'
+    var input = document.createElement('input')
+    input.type = 'range'; input.min = s.min; input.max = s.max; input.step = s.step
+    input.oninput = function () {
+      wrap.querySelector('em').textContent = s.fmt(Number(input.value))
+      cmd(s.action, Number(input.value))
+    }
+    wrap.appendChild(input)
+    sliderEls[s.key] = { input: input, val: wrap.querySelector('em'), fmt: s.fmt }
+    document.getElementById('fxSliders').appendChild(wrap)
+  })
+
+  function renderMic(fx) {
+    MIC_MODES.forEach(function (m) {
+      modeBtns[m].className = 'mode' + (m === 'Off' ? ' off' : '') + (fx.mode === m ? ' active' : '')
+    })
+    FX_PRESET_NAMES.forEach(function (p) {
+      presetBtns[p].className = 'preset' + (fx.preset === p ? ' active' : '')
+    })
+    monitorBox.checked = !!fx.monitor
+    if (fx.mode === 'Off') micHint.textContent = 'Mic is off — no speaker feedback.'
+    else if (fx.monitor) micHint.textContent = 'Live monitor is on — keep the mic away from the speakers.'
+    else micHint.textContent = ''
+    FX_SLIDERS.forEach(function (s) {
+      var el = sliderEls[s.key]
+      var v = fx[s.key]
+      if (typeof v !== 'number') return
+      if (document.activeElement !== el.input) el.input.value = v
+      el.val.textContent = el.fmt(v)
+    })
   }
 
   function renderQueue() {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SongSource } from '~/utils/db'
+import { libraryFolderAvailable } from '~/composables/useLibrary'
 
 const library = useLibrary()
 
@@ -10,6 +11,15 @@ const result = ref<string | null>(null)
 const failed = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const folderInput = ref<HTMLInputElement | null>(null)
+const hasFolder = ref(false)
+const folderDir = ref('')
+
+onMounted(async () => {
+  hasFolder.value = libraryFolderAvailable()
+  if (hasFolder.value) {
+    try { folderDir.value = (await (window as any).okara.library.info()).dir } catch { /* ignore */ }
+  }
+})
 
 const sources: { value: SongSource; label: string; hint: string }[] = [
   { value: 'UltraStar', label: 'UltraStar', hint: '.txt + audio — has scoring' },
@@ -20,25 +30,37 @@ const sources: { value: SongSource; label: string; hint: string }[] = [
   { value: 'Other', label: 'Other', hint: 'any audio/video' },
 ]
 
-async function handle(files: File[]) {
-  if (!files.length) return
+function report(count: number) {
+  if (count > 0) {
+    result.value = `Imported ${count} file${count > 1 ? 's' : ''}. It's in your Library now.`
+      + (hasFolder.value ? ' Files were copied into your library folder.' : '')
+  } else {
+    failed.value = true
+    result.value = 'No supported songs found in that selection.'
+  }
+}
+
+async function run(fn: () => Promise<number>) {
   busy.value = true
   result.value = null
   failed.value = false
   try {
-    const count = await library.importFiles(files, source.value)
-    if (count > 0) {
-      result.value = `Imported ${count} file${count > 1 ? 's' : ''}. It's in your Library now.`
-    } else {
-      failed.value = true
-      result.value = 'No supported songs found in that selection.'
-    }
+    report(await fn())
   } catch {
     failed.value = true
     result.value = 'Import failed — storage may be full.'
   } finally {
     busy.value = false
   }
+}
+
+function handle(files: File[]) {
+  if (!files.length) return
+  run(() => library.importFiles(files, source.value))
+}
+
+function pickNative(kind: 'files' | 'folder') {
+  run(() => library.importFromPicker(kind, source.value))
 }
 
 function onDrop(e: DragEvent) {
@@ -87,9 +109,19 @@ function onPick(e: Event) {
       <div class="drop__icon"><i class="bi bi-cloud-arrow-down" /></div>
       <p><strong>Drag files here</strong></p>
       <div class="drop__btns">
-        <button @click="fileInput?.click()">Choose files</button>
-        <button class="ghost" @click="folderInput?.click()">Choose folder</button>
+        <template v-if="hasFolder">
+          <button @click="pickNative('files')">Choose files</button>
+          <button class="ghost" @click="pickNative('folder')">Choose folder</button>
+        </template>
+        <template v-else>
+          <button @click="fileInput?.click()">Choose files</button>
+          <button class="ghost" @click="folderInput?.click()">Choose folder</button>
+        </template>
       </div>
+      <p v-if="hasFolder && folderDir" class="lib-note">
+        <i class="bi bi-folder-check" /> Imports are copied into your library folder:
+        <code>{{ folderDir }}</code>
+      </p>
       <p v-if="busy" class="status">Importing…</p>
       <p v-else-if="result" class="status" :class="failed ? 'err' : 'ok'">{{ result }}</p>
     </div>
@@ -130,6 +162,8 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .status { margin-top: 14px; color: var(--text-muted); }
 .status.ok { color: var(--ok); }
 .status.err { color: var(--danger); }
+.lib-note { margin-top: 14px; font-size: 12px; color: var(--text-faint); word-break: break-all; }
+.lib-note code { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
 .note { margin-top: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
 .note h3 { margin: 0 0 8px; font-size: 15px; }
 .note ul { margin: 0; padding-left: 18px; line-height: 1.7; color: var(--text-muted); font-size: 14px; }

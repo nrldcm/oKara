@@ -1,18 +1,39 @@
 <script setup lang="ts">
 import { listMicrophones } from '~/composables/usePitch'
+import { libraryFolderAvailable } from '~/composables/useLibrary'
 
 const { settings } = useSettings()
 const emit = defineEmits<{ clear: [] }>()
 
 const mics = ref<MediaDeviceInfo[]>([])
 const confirmClear = ref(false)
+const libDir = ref('')
+const libCanChoose = ref(false)
+const hasLibFolder = ref(false)
 
 async function refreshMics() {
   try { await navigator.mediaDevices.getUserMedia({ audio: true }) } catch { /* */ }
   mics.value = await listMicrophones()
 }
 
-onMounted(refreshMics)
+onMounted(async () => {
+  refreshMics()
+  hasLibFolder.value = libraryFolderAvailable()
+  if (hasLibFolder.value) {
+    try {
+      const info = await (window as any).okara.library.info()
+      libDir.value = info.dir
+      libCanChoose.value = !!info.canChooseDir
+    } catch { /* ignore */ }
+  }
+})
+
+async function chooseLibDir() {
+  try {
+    const res = await (window as any).okara.library.chooseDir()
+    if (res?.dir) libDir.value = res.dir
+  } catch { /* cancelled */ }
+}
 
 function doClear() {
   emit('clear')
@@ -67,9 +88,30 @@ function doClear() {
       <RemotePanel />
     </div>
 
+    <div v-if="hasLibFolder" class="block">
+      <h3>Library folder</h3>
+      <p class="muted">
+        Imported songs are copied into this folder — one big library that
+        survives reinstalls. You can also bulk-copy song files straight into it;
+        they are picked up on the next launch.
+      </p>
+      <div class="row">
+        <code class="dir">{{ libDir || '…' }}</code>
+        <button v-if="libCanChoose" class="mini" @click="chooseLibDir">Change…</button>
+      </div>
+      <p v-if="!libCanChoose" class="muted small">
+        On Android the folder is fixed (app files → <em>library</em>, visible over
+        USB). Back it up before uninstalling the app.
+      </p>
+      <p v-else class="muted small">
+        Changing the folder does not move existing files — new imports go to the
+        new folder; copy old files over manually if you want them rescanned there.
+      </p>
+    </div>
+
     <div class="block danger">
       <h3>Library</h3>
-      <p>This deletes all imported songs (the demo stays).</p>
+      <p>This deletes all imported songs and their files in the library folder (the demo stays).</p>
       <button v-if="!confirmClear" class="del" @click="confirmClear = true">Clear library</button>
       <div v-else class="confirm">
         <span>Are you sure?</span>
@@ -100,6 +142,10 @@ h1 { font-size: 26px; margin: 0 0 24px; }
 .segmented button.active { background: var(--accent); color: var(--on-accent); opacity: 1; font-weight: 600; }
 .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); }
 .danger p { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; }
+.muted { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; line-height: 1.5; }
+.muted.small { font-size: 12px; color: var(--text-faint); margin: 10px 0 0; }
+.dir { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; font-size: 13px; word-break: break-all; }
 .del { padding: 10px 18px; border-radius: 999px; border: none; background: var(--danger); color: #fff; cursor: pointer; }
 .confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .about { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 30px; }

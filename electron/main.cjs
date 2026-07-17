@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const { startRemoteServer } = require('./server.cjs')
+const { registerLibraryIpc } = require('./library.cjs')
 
 let win = null
 let remote = null
@@ -34,6 +35,7 @@ async function createWindow() {
 
 ipcMain.handle('okara:get-pairing', () => ({ url: remote?.url, token: remote?.token }))
 ipcMain.on('okara:state', (_e, state) => remote?.broadcastState(state))
+registerLibraryIpc(() => win)
 
 app.whenReady().then(createWindow)
 

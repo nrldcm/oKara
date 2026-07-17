@@ -1,8 +1,13 @@
 <script setup lang="ts">
 interface ReservedItem { number: number; title: string; artist: string }
+interface FxState {
+  mode: string; monitor: boolean; preset: string; volume: number
+  reverb: number; echo: number; echoTime: number; bass: number; treble: number
+}
 interface State {
   hasSong: boolean; playing: boolean; title: string; artist: string
   volume: number; reserved: number; reservedList: ReservedItem[]; message: string; messageSeq: number
+  fx?: FxState
 }
 
 const state = ref<State>({
@@ -10,7 +15,18 @@ const state = ref<State>({
   reserved: 0, reservedList: [], message: '', messageSeq: 0,
 })
 const connected = ref(false)
-const tab = ref<'remote' | 'queue'>('remote')
+const tab = ref<'remote' | 'queue' | 'mic'>('remote')
+
+const MIC_MODES = ['Off', 'Clean', 'Karaoke', 'Pro']
+const FX_PRESETS = ['Off', 'Karaoke', 'Echo Mic', 'Concert Hall', 'Studio']
+const FX_SLIDERS: { action: string; key: keyof FxState; label: string; min: number; max: number; step: number; fmt: (v: number) => string }[] = [
+  { action: 'fx-volume', key: 'volume', label: 'Mic volume', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { action: 'fx-reverb', key: 'reverb', label: 'Reverb', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { action: 'fx-echo', key: 'echo', label: 'Echo', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { action: 'fx-echo-time', key: 'echoTime', label: 'Echo time', min: 0.08, max: 0.6, step: 0.01, fmt: (v) => `${Math.round(v * 1000)}ms` },
+  { action: 'fx-bass', key: 'bass', label: 'Bass', min: -12, max: 12, step: 1, fmt: (v) => `${v > 0 ? '+' : ''}${v}dB` },
+  { action: 'fx-treble', key: 'treble', label: 'Treble', min: -12, max: 12, step: 1, fmt: (v) => `${v > 0 ? '+' : ''}${v}dB` },
+]
 const dialed = ref('')
 const flash = ref('')
 const confirmIdx = ref<number | null>(null)
@@ -35,8 +51,13 @@ onMounted(() => {
 })
 onBeforeUnmount(() => { channel?.close(); if (flashTimer) clearTimeout(flashTimer) })
 
-function cmd(action: string, value?: number) {
+function cmd(action: string, value?: number | string) {
   channel?.postMessage({ type: 'cmd', action, value })
+}
+function onFxSlider(action: string, key: keyof FxState, e: Event) {
+  const v = Number((e.target as HTMLInputElement).value)
+  if (state.value.fx) (state.value.fx as any)[key] = v
+  cmd(action, v)
 }
 function showFlash(msg: string) {
   flash.value = msg
@@ -68,6 +89,7 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
       <button :class="{ active: tab === 'queue' }" @click="tab = 'queue'">
         <i class="bi bi-list-ul" /> Queue<span v-if="state.reserved" class="count">{{ state.reserved }}</span>
       </button>
+      <button :class="{ active: tab === 'mic' }" @click="tab = 'mic'"><i class="bi bi-mic-fill" /> Mic</button>
     </div>
 
     <div class="now" :class="{ idle: !state.hasSong }">
@@ -112,6 +134,50 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
         <input type="range" min="0" max="1" step="0.01" :value="state.volume" @input="onVolume" />
         <i class="bi bi-volume-up-fill" />
       </label>
+    </template>
+
+    <template v-else-if="tab === 'mic'">
+      <div v-if="!state.fx" class="queue">
+        <p class="q-empty">Mic controls unavailable — update the host app.</p>
+      </div>
+      <div v-else class="mic">
+        <div class="mic-modes">
+          <button
+            v-for="m in MIC_MODES" :key="m"
+            class="mode" :class="{ active: state.fx.mode === m, off: m === 'Off' }"
+            @click="cmd('mic-mode', m)"
+          >
+            <i class="bi" :class="m === 'Off' ? 'bi-mic-mute-fill' : 'bi-mic-fill'" />
+            {{ m }}
+          </button>
+        </div>
+        <p v-if="state.fx.mode === 'Off'" class="mic-hint">Mic is off — no speaker feedback.</p>
+        <p v-else-if="state.fx.monitor" class="mic-hint warn">Live monitor is on — keep the mic away from the speakers.</p>
+
+        <label class="monitor" :class="{ on: state.fx.monitor }">
+          <input type="checkbox" :checked="state.fx.monitor"
+            @change="cmd('fx-monitor', ($event.target as HTMLInputElement).checked ? 1 : 0)" />
+          <span><i class="bi bi-headphones" /> Hear my voice (live monitor)</span>
+        </label>
+
+        <div class="presets">
+          <button
+            v-for="p in FX_PRESETS" :key="p"
+            class="preset" :class="{ active: state.fx.preset === p }"
+            @click="cmd('fx-preset', p)"
+          >{{ p }}</button>
+        </div>
+
+        <div class="sliders">
+          <label v-for="s in FX_SLIDERS" :key="s.action" class="fx-slider">
+            <span class="top"><span>{{ s.label }}</span><em>{{ s.fmt(Number(state.fx[s.key])) }}</em></span>
+            <input
+              type="range" :min="s.min" :max="s.max" :step="s.step"
+              :value="state.fx[s.key]" @input="onFxSlider(s.action, s.key, $event)"
+            />
+          </label>
+        </div>
+      </div>
     </template>
 
     <template v-else>
@@ -201,4 +267,24 @@ h1 { font-size: 20px; margin: 0; }
 .flash { min-height: 20px; color: var(--accent); font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .2s; }
 .flash.show { opacity: 1; }
 .status { color: var(--text-faint); font-size: 13px; margin-top: auto; }
+.mic { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.mic-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mode { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px;
+  border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  cursor: pointer; font-size: 13px; font-weight: 600; }
+.mode i { font-size: 18px; }
+.mode.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.mode.off.active { background: var(--danger); border-color: var(--danger); color: #fff; }
+.mic-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin: -6px 0 0; }
+.mic-hint.warn { color: var(--accent-2, var(--accent)); }
+.monitor { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+.presets { display: flex; gap: 8px; flex-wrap: wrap; }
+.preset { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); cursor: pointer; font-size: 13px; }
+.preset.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.sliders { display: flex; flex-direction: column; gap: 12px; }
+.fx-slider { display: flex; flex-direction: column; gap: 6px; }
+.fx-slider .top { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
+.fx-slider .top em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--text); }
+.fx-slider input { width: 100%; accent-color: var(--accent); }
 </style>

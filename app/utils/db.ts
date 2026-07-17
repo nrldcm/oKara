@@ -14,6 +14,14 @@ export interface StoredSong {
   audio?: Blob
   video?: Blob
   cover?: Blob
+  // When the song lives in the on-disk library folder (desktop/Android),
+  // media is referenced by path instead of stored as blobs. `paths` holds
+  // every library file this song consumed (txt included) so the startup
+  // folder scan knows they are already imported.
+  audioPath?: string
+  videoPath?: string
+  coverPath?: string
+  paths?: string[]
 }
 
 const DB_NAME = 'okara'

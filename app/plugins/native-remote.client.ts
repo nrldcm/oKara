@@ -7,14 +7,27 @@ interface RemoteServerPlugin {
   addListener(event: 'remoteCount', cb: (data: { count: number }) => void): Promise<unknown>
 }
 
-// On Android the native RemoteServer plugin plays the role of the Electron
-// main process: it runs the LAN HTTP+WebSocket server for the QR phone
-// remote. Expose it under the same window.okara bridge the app already uses
-// (see electron/preload.cjs) so useRemote() works unchanged.
+interface LibraryEntry { name: string; path: string }
+
+interface LibraryNativePlugin {
+  info(): Promise<{ dir: string; canChooseDir: boolean }>
+  chooseDir(): Promise<{ dir: string } | null>
+  pickImport(options: { kind: 'files' | 'folder' }): Promise<{ files: LibraryEntry[] }>
+  list(): Promise<{ files: LibraryEntry[] }>
+  readText(options: { path: string }): Promise<{ text: string }>
+  deleteFiles(options: { paths: string[] }): Promise<void>
+}
+
+// On Android the native plugins play the role of the Electron main process:
+// RemoteServer runs the LAN HTTP+WebSocket server for the QR phone remote,
+// Library manages the on-disk song folder. Expose them under the same
+// window.okara bridge the app already uses (see electron/preload.cjs) so the
+// web code works unchanged.
 export default defineNuxtPlugin(() => {
   if (!Capacitor.isNativePlatform()) return
 
   const remote = registerPlugin<RemoteServerPlugin>('RemoteServer')
+  const library = registerPlugin<LibraryNativePlugin>('Library')
 
   ;(window as any).okara = {
     isElectron: true,
@@ -27,6 +40,19 @@ export default defineNuxtPlugin(() => {
     },
     sendState: (state: unknown) => {
       remote.sendState({ state })
+    },
+
+    toMediaUrl: (path: string) => Capacitor.convertFileSrc(path),
+    getPathForFile: () => '', // WebView Files carry no real paths; imports use the native picker
+
+    library: {
+      info: () => library.info(),
+      chooseDir: () => library.chooseDir(),
+      pickImport: (kind: 'files' | 'folder') => library.pickImport({ kind }).then((r) => r.files ?? []),
+      importPaths: () => Promise.resolve([]),
+      list: () => library.list().then((r) => r.files ?? []),
+      readText: (path: string) => library.readText({ path }).then((r) => r.text ?? ''),
+      deleteFiles: (paths: string[]) => library.deleteFiles({ paths }),
     },
   }
 })

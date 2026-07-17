@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { RuntimeSong } from '~/composables/useLibrary'
+import { FX_PRESETS, MIC_MODES, applyMicMode } from '~/composables/useSettings'
 
 const library = useLibrary()
-const { load: loadSettings } = useSettings()
+const { settings, load: loadSettings } = useSettings()
 const remote = useRemote()
 const bus = useRemoteBus()
 const { theme, init: initTheme, toggle: toggleTheme } = useTheme()
@@ -99,16 +100,59 @@ watch(nowPlaying, (s) => {
   }
 })
 
+// Mirror the mic/soundboard settings into the remote state so the phone's
+// Mic tab always shows what the host is using.
+watch(() => settings.value.fx, (fx) => {
+  bus.state.value = {
+    ...bus.state.value,
+    fx: {
+      mode: fx.mode, monitor: fx.monitor, preset: fx.preset, volume: fx.volume,
+      reverb: fx.reverb, echo: fx.echo, echoTime: fx.echoTime, bass: fx.bass, treble: fx.treble,
+    },
+  }
+}, { deep: true, immediate: true })
+
+function asNumber(v: number | string | undefined): number | undefined {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+function setFx(key: 'volume' | 'reverb' | 'echo' | 'echoTime' | 'bass' | 'treble', v?: number | string) {
+  const n = asNumber(v)
+  if (n == null) return
+  settings.value.fx[key] = n
+  settings.value.fx.preset = 'Custom'
+}
+
 const offCommand = bus.onCommand((c) => {
   switch (c.action) {
     case 'next': playNext(); break
     case 'prev': playPrev(); break
     case 'stop': stop(); break
-    case 'play-number': playNumber(c.value); break
-    case 'reserve-number': reserveNumber(c.value); break
-    case 'reserve-remove': removeReserved(c.value); break
-    case 'reserve-up': moveReserved(c.value, -1); break
-    case 'reserve-down': moveReserved(c.value, 1); break
+    case 'play-number': playNumber(asNumber(c.value)); break
+    case 'reserve-number': reserveNumber(asNumber(c.value)); break
+    case 'reserve-remove': removeReserved(asNumber(c.value)); break
+    case 'reserve-up': moveReserved(asNumber(c.value), -1); break
+    case 'reserve-down': moveReserved(asNumber(c.value), 1); break
+    case 'mic-mode':
+      if (typeof c.value === 'string' && c.value in MIC_MODES) {
+        applyMicMode(settings.value.fx, c.value)
+        bus.flash(c.value === 'Off' ? 'Mic off' : `Mic: ${c.value}`)
+      }
+      break
+    case 'fx-monitor': settings.value.fx.monitor = c.value === 1 || c.value === '1'; break
+    case 'fx-preset':
+      if (typeof c.value === 'string' && c.value in FX_PRESETS) {
+        Object.assign(settings.value.fx, FX_PRESETS[c.value])
+        settings.value.fx.preset = c.value
+      }
+      break
+    case 'fx-volume': setFx('volume', c.value); break
+    case 'fx-reverb': setFx('reverb', c.value); break
+    case 'fx-echo': setFx('echo', c.value); break
+    case 'fx-echo-time': setFx('echoTime', c.value); break
+    case 'fx-bass': setFx('bass', c.value); break
+    case 'fx-treble': setFx('treble', c.value); break
   }
 })
 onBeforeUnmount(offCommand)
