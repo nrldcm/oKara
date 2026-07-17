@@ -11,6 +11,7 @@ const { theme } = useTheme()
 const pitch = usePitch()
 const bus = useRemoteBus()
 const volume = ref(1)
+const showFx = ref(false)
 
 const parsed = parseUltraStar(props.song.txt ?? '')
 const isSynth = !props.song.audioUrl
@@ -140,6 +141,12 @@ function restart() {
 
 function toggle() {
   playing.value ? pause() : play()
+}
+
+const modeNames = Object.keys(MIC_MODES)
+function cycleMode() {
+  const i = modeNames.indexOf(settings.value.fx.mode)
+  applyMicMode(settings.value.fx, modeNames[(i + 1) % modeNames.length])
 }
 
 function applyVolume() {
@@ -421,10 +428,22 @@ onBeforeUnmount(() => {
     <footer class="player__controls" v-if="!finished">
       <button class="ctrl" @click="toggle">{{ playing ? '⏸ Pause' : '▶ Play' }}</button>
       <button class="ctrl ghost" @click="restart">↻ Restart</button>
+      <button class="ctrl ghost" @click="cycleMode" title="Quick mic mode">🎤 {{ settings.fx.mode }}</button>
+      <button class="ctrl ghost" @click="showFx = !showFx">🎚️ FX</button>
       <div class="mic" :class="{ live: pitch.active.value }">
         <span class="dot" /> Mic {{ pitch.active.value ? 'on' : 'off' }}
       </div>
     </footer>
+
+    <div v-if="showFx" class="fx-modal" @click.self="showFx = false">
+      <div class="fx-sheet">
+        <div class="fx-sheet__head">
+          <strong>Vocal effects</strong>
+          <button class="icon-btn" @click="showFx = false">✕</button>
+        </div>
+        <VocalFxPanel />
+      </div>
+    </div>
 
     <audio v-if="!isSynth" ref="audioEl" :src="props.song.audioUrl" preload="auto" @ended="finish" />
   </div>
@@ -460,6 +479,12 @@ onBeforeUnmount(() => {
 .mic .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); }
 .mic.live .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 .icon-btn { background: none; border: none; color: var(--text); cursor: pointer; font-size: 15px; }
+.fx-modal { position: absolute; inset: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 60%, transparent);
+  display: flex; align-items: flex-end; justify-content: center; }
+.fx-sheet { width: 100%; max-width: 640px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px 18px 0 0; padding: 18px 20px 24px; box-shadow: var(--shadow); }
+.fx-sheet__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.fx-sheet__head strong { font-size: 17px; }
 
 @media (max-width: 560px) {
   .player__score { font-size: 22px; }

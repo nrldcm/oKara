@@ -59,6 +59,11 @@ function doClear() {
     </div>
 
     <div class="block">
+      <h3>Vocal effects</h3>
+      <VocalFxPanel />
+    </div>
+
+    <div class="block">
       <RemotePanel />
     </div>
 
