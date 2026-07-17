@@ -14,7 +14,9 @@ function setMode(name: string) {
 }
 
 const sliders: { key: 'volume' | 'reverb' | 'echo' | 'echoTime' | 'bass' | 'treble'; label: string; min: number; max: number; step: number; fmt: (v: number) => string }[] = [
-  { key: 'volume', label: 'Mic volume', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  // Mic volume goes to 200% — like karaoke machines, the mic can be boosted
+  // above unity, not just attenuated.
+  { key: 'volume', label: 'Mic volume', min: 0, max: 2, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
   { key: 'reverb', label: 'Reverb', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
   { key: 'echo', label: 'Echo', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
   { key: 'echoTime', label: 'Echo time', min: 0.08, max: 0.6, step: 0.01, fmt: (v) => `${Math.round(v * 1000)}ms` },

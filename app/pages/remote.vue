@@ -20,7 +20,7 @@ const tab = ref<'remote' | 'queue' | 'mic'>('remote')
 const MIC_MODES = ['Off', 'Clean', 'Karaoke', 'Pro']
 const FX_PRESETS = ['Off', 'Karaoke', 'Echo Mic', 'Concert Hall', 'Studio']
 const FX_SLIDERS: { action: string; key: keyof FxState; label: string; min: number; max: number; step: number; fmt: (v: number) => string }[] = [
-  { action: 'fx-volume', key: 'volume', label: 'Mic volume', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
+  { action: 'fx-volume', key: 'volume', label: 'Mic volume', min: 0, max: 2, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
   { action: 'fx-reverb', key: 'reverb', label: 'Reverb', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
   { action: 'fx-echo', key: 'echo', label: 'Echo', min: 0, max: 1, step: 0.01, fmt: (v) => `${Math.round(v * 100)}%` },
   { action: 'fx-echo-time', key: 'echoTime', label: 'Echo time', min: 0.08, max: 0.6, step: 0.01, fmt: (v) => `${Math.round(v * 1000)}ms` },
@@ -130,7 +130,7 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
       </div>
 
       <label class="vol">
-        <i class="bi bi-volume-down-fill" />
+        <span class="vol__label"><i class="bi bi-music-note-beamed" /> Music</span>
         <input type="range" min="0" max="1" step="0.01" :value="state.volume" @input="onVolume" />
         <i class="bi bi-volume-up-fill" />
       </label>
@@ -249,6 +249,7 @@ h1 { font-size: 20px; margin: 0; }
 .btn.stop { background: var(--danger); color: #fff; border: none; }
 .vol { display: flex; align-items: center; gap: 12px; width: 100%; }
 .vol input { flex: 1; accent-color: var(--accent); }
+.vol__label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
 .queue { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 .q-empty { color: var(--text-faint); text-align: center; padding: 20px 0; }
 .q-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border);

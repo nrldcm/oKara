@@ -208,9 +208,9 @@ public:
             }
 
             float y = (x + delayed * echoMix + rev * wet * 1.4f) * vol;
-            if (y > 1.0f) y = 1.0f;
-            if (y < -1.0f) y = -1.0f;
-            out[i] = y;
+            // Soft clip: with mic boost up to 200%, tanh limits gracefully
+            // instead of the harsh distortion of a hard clamp.
+            out[i] = std::tanh(y);
         }
         return oboe::DataCallbackResult::Continue;
     }

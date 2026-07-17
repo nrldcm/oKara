@@ -242,9 +242,8 @@ public class MonitorPlugin extends Plugin {
                     ring[ringPos] = dry + delayed * fb;
                     ringPos++;
                     if (ringPos >= ring.length) ringPos = 0;
-                    float out = (dry + delayed * mix) * vol;
-                    if (out > 32767f) out = 32767f;
-                    if (out < -32768f) out = -32768f;
+                    // Soft clip (tanh) so a boosted mic limits gracefully.
+                    float out = (float) Math.tanh((dry + delayed * mix) * vol / 32768.0) * 32767f;
                     buf[i] = (short) out;
                 }
                 track.write(buf, 0, n);

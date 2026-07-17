@@ -13,6 +13,17 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.6.1] - 2026-07-17
+
+### Changed
+
+- **Mic volume can now boost up to 200%** (was capped at 100%) on the host
+  panel and the phone remote's Mic tab — like real karaoke machines, the mic
+  can be amplified above unity, not just attenuated. The native monitor soft-
+  clips (tanh) so a hot mic limits gracefully instead of distorting harshly.
+- The remote's music slider is now labeled **Music** so it's clear it controls
+  the song volume, separate from **Mic volume** in the Mic tab.
+
 ## [0.6.0] - 2026-07-17
 
 ### Changed
@@ -135,7 +146,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/nrldcm/okara/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/nrldcm/okara/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/nrldcm/okara/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nrldcm/okara/compare/v0.3.0...v0.4.0
