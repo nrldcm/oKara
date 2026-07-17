@@ -93,8 +93,9 @@ How the remote works:
   publishes a [GitHub Release](https://github.com/nrldcm/okara/releases)** with
   the `.exe` files and `SHA256SUMS.txt` attached. Full steps in
   [`RELEASING.md`](RELEASING.md).
-- **Actions → "Build Windows app" → Run workflow** → builds and uploads the
-  `.exe` files as **workflow artifacts** only (for testing a build, no Release).
+- **Actions → "Build Windows app" → Run workflow** → same by default: builds
+  and publishes a Release, creating the `v<version>` tag from `package.json`.
+  Untick **publish** for a test build (workflow artifacts only, no Release).
 
 **Locally on Windows:**
 

@@ -4,18 +4,24 @@ name: Build Windows app
 #
 #  • Push a version tag (e.g. `v0.1.0`) → builds AND publishes a GitHub
 #    Release with the .exe files and SHA-256 checksums attached.
-#  • Manual run (workflow_dispatch) → builds and uploads the .exe files as
-#    workflow artifacts only (no Release), for testing a build.
+#  • Manual run (workflow_dispatch) → same, by default: builds and publishes a
+#    Release tagged `v<package.json version>` (the workflow creates the tag).
+#    Untick the "publish" input to get a test build (artifacts only).
 #
 # See RELEASING.md for the full versioned-release process.
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish a GitHub Release (tag v<package.json version>)'
+        type: boolean
+        default: true
   push:
     tags: ['v*']
 
 permissions:
-  contents: write # required to create the GitHub Release
+  contents: write # required to create the GitHub Release (and its tag)
 
 jobs:
   build:
@@ -28,11 +34,16 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Read package.json version
+        id: pkg
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Verify tag matches package.json version
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
-          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          PKG_VERSION="v${{ steps.pkg.outputs.version }}"
           TAG="${GITHUB_REF_NAME}"
           echo "package.json = $PKG_VERSION, tag = $TAG"
           if [ "$PKG_VERSION" != "$TAG" ]; then
@@ -70,10 +81,14 @@ jobs:
             dist-electron/SHA256SUMS.txt
           if-no-files-found: error
 
+      # Runs on tag pushes, and on manual runs unless "publish" was unticked.
+      # On a manual run the tag v<version> is created by the release action at
+      # the built commit if it doesn't exist yet.
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.pkg.outputs.version }}
           draft: false
           generate_release_notes: true
           fail_on_unmatched_files: true

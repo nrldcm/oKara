@@ -21,8 +21,10 @@ Each release contains:
 | `SHA256SUMS.txt`                | SHA-256 checksums to verify the downloads           |
 
 > A **manual** workflow run (Actions → *Build Windows app* → *Run workflow*)
-> does **not** create a Release. It only uploads the `.exe` files as
-> **workflow artifacts** (Actions run → *Artifacts*), for testing a build.
+> also publishes a Release by default: it builds from the chosen branch and
+> creates the tag `v<package.json version>` itself. Untick the **publish**
+> input to get a test build instead — `.exe` files uploaded only as
+> **workflow artifacts** (Actions run → *Artifacts*), no Release.
 
 ## Cut a release
 
