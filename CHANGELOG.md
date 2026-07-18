@@ -13,6 +13,18 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.19] - 2026-07-18
+
+### Fixed
+
+- **"Conversion failed: pathToFileURL is not a function"** — imported songs
+  never appeared in the Library even though the conversion succeeded. The
+  desktop bridge built file URLs with a Node function that isn't available in
+  Electron's sandboxed preload, so adding a file-backed song threw. File URLs
+  are now built directly (Windows and POSIX paths), so imports show up
+  correctly. **Already-converted files sitting in your library folder will be
+  picked up automatically** on next launch — no need to re-convert.
+
 ## [0.9.18] - 2026-07-18
 
 ### Added
@@ -498,7 +510,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.18...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.19...HEAD
+[0.9.19]: https://github.com/nrldcm/okara/compare/v0.9.18...v0.9.19
 [0.9.18]: https://github.com/nrldcm/okara/compare/v0.9.17...v0.9.18
 [0.9.17]: https://github.com/nrldcm/okara/compare/v0.9.16...v0.9.17
 [0.9.16]: https://github.com/nrldcm/okara/compare/v0.9.15...v0.9.16

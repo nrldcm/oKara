@@ -1,5 +1,14 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron')
-const { pathToFileURL } = require('url')
+
+// Build a file:// URL from an absolute path WITHOUT url.pathToFileURL, which is
+// not available in Electron's sandboxed preload (calling it throws
+// "pathToFileURL is not a function", which used to break every file-backed
+// import). Handles Windows drive paths (D:\a\b) and POSIX paths (/a/b).
+function fileUrl(p) {
+  const s = String(p).replace(/\\/g, '/')
+  const encoded = s.split('/').map((seg) => (/^[a-zA-Z]:$/.test(seg) ? seg : encodeURIComponent(seg))).join('/')
+  return s.startsWith('/') ? `file://${encoded}` : `file:///${encoded}`
+}
 
 contextBridge.exposeInMainWorld('okara', {
   isElectron: true,
@@ -11,7 +20,7 @@ contextBridge.exposeInMainWorld('okara', {
   sendSongs: (songs) => ipcRenderer.send('okara:songs', songs),
 
   // Media in the on-disk library plays straight from file:// URLs.
-  toMediaUrl: (p) => pathToFileURL(p).href,
+  toMediaUrl: (p) => fileUrl(p),
   // Real filesystem path of a dragged-in File, so imports can be copied
   // into the library folder without shuttling bytes through the renderer.
   getPathForFile: (file) => {
