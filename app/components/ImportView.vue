@@ -3,11 +3,11 @@ import type { SongSource } from '~/utils/db'
 import { libraryFolderAvailable, canConvertDiscs } from '~/composables/useLibrary'
 
 const library = useLibrary()
-const emit = defineEmits<{ playDisc: [{ title: string; url: string }] }>()
+const emit = defineEmits<{ playDisc: [{ title: string; src: unknown }] }>()
 
 // Direct play from a disc/ISO (live streaming transcode — no import)
 const disc = useDisc()
-const pickedTracks = ref<{ title: string; url: string }[]>([])
+const pickedTracks = ref<{ title: string; src: unknown }[]>([])
 // Show an inserted physical disc's tracks if there is one, else the last pick.
 const discTracks = computed(() => disc.disc.value?.tracks?.length ? disc.disc.value.tracks : pickedTracks.value)
 const scanMsg = ref('')

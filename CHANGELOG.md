@@ -13,7 +13,21 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
-## [0.9.7] - 2026-07-18
+## [0.9.8] - 2026-07-18
+
+### Fixed
+
+- **Disc/ISO playback looked datamoshed (vertical smearing / broken frames)** —
+  the picture dissolved into dragging blocks and torn frames, like a corrupt
+  video. The cause was **live-streaming a half-formed fragmented MP4** straight
+  into the player: frames arrived without their keyframes, so `<video>` had
+  nothing clean to draw from and smeared the previous frame instead. Playing
+  from a disc/ISO now **transcodes the track to a complete temp MP4 first**
+  (proper keyframes + `moov` + deinterlaced) and plays that file through a
+  local, seekable media server — the same reliable path as an imported song. A
+  short **"Preparing…"** overlay shows the convert progress, then it plays
+  clean and fully seekable. (Importing still works too; this just makes
+  press-play-from-disc reliable.)
 
 ### Fixed
 
@@ -317,7 +331,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.7...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.8...HEAD
+[0.9.8]: https://github.com/nrldcm/okara/compare/v0.9.7...v0.9.8
 [0.9.7]: https://github.com/nrldcm/okara/compare/v0.9.6...v0.9.7
 [0.9.6]: https://github.com/nrldcm/okara/compare/v0.9.5...v0.9.6
 [0.9.5]: https://github.com/nrldcm/okara/compare/v0.9.4...v0.9.5

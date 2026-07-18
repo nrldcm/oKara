@@ -25,6 +25,7 @@ onMounted(async () => {
   loadSettings()
   importJob.ensureListener() // keep convert progress alive across tab switches
   discState.ensureListener() // auto-detect inserted DVD/VCD discs
+  ;(window as any).okara?.onDiscProgress?.((p: any) => { prepPct.value = Math.round((p.fraction ?? 0) * 100) })
   // When a background conversion finishes, pick up the new MP4s (covers a
   // refresh that happened mid-conversion).
   ;(window as any).okara?.library?.onImportDone?.(() => library.rescan())
@@ -43,20 +44,39 @@ function playInsertedDisc() {
   if (d?.tracks?.length) { playDisc(d.tracks[0]); discState.dismiss() }
 }
 
-// Direct play of a disc/ISO track that live-streams from the host (no import).
-function playDisc(track: { title: string; url: string }) {
-  queue.value = []
-  nowPlaying.value = {
-    id: `disc-${Date.now()}`,
-    number: 0,
-    title: track.title,
-    artist: 'Disc',
-    kind: 'video',
-    source: 'Other',
-    hasScoring: false,
-    createdAt: Date.now(),
-    videoUrl: track.url,
-  } as RuntimeSong
+// Play a disc/ISO track: the host transcodes it to a clean temp MP4 first
+// (proper keyframes, deinterlaced), then plays it — reliable, no datamoshing.
+const preparing = ref(false)
+const prepPct = ref(0)
+const prepError = ref('')
+
+async function playDisc(track: { title: string; src: unknown }) {
+  const okara = (window as any).okara
+  if (!okara?.discPrepare) return
+  preparing.value = true
+  prepPct.value = 0
+  prepError.value = ''
+  try {
+    const res = await okara.discPrepare(track.src)
+    if (res?.url) {
+      queue.value = []
+      nowPlaying.value = {
+        id: `disc-${Date.now()}`,
+        number: 0,
+        title: track.title,
+        artist: 'Disc',
+        kind: 'video',
+        source: 'Other',
+        hasScoring: false,
+        createdAt: Date.now(),
+        videoUrl: res.url,
+      } as RuntimeSong
+    } else {
+      prepError.value = res?.error || 'Could not prepare this track.'
+    }
+  } finally {
+    preparing.value = false
+  }
 }
 
 function playNext() {
@@ -250,6 +270,17 @@ async function onClear() {
       <SettingsView v-else @clear="onClear" />
     </main>
 
+    <div v-if="preparing" class="prep-overlay">
+      <div class="prep-box">
+        <i class="bi bi-disc-fill spin" />
+        <h3>Preparing track…</h3>
+        <p>Converting for smooth playback (deinterlaced, clean keyframes).</p>
+        <div class="prep-bar"><div class="prep-fill" :style="{ width: prepPct + '%' }" /></div>
+        <span class="prep-pct">{{ prepPct }}%</span>
+      </div>
+    </div>
+    <p v-if="prepError" class="prep-error">{{ prepError }}</p>
+
     <div v-if="nowPlaying" class="stage-overlay">
       <KaraokePlayer v-if="nowPlaying.kind === 'ultrastar'" :key="nowPlaying.id" :song="nowPlaying" @close="stop" @ended="onEnded" />
       <MediaPlayer v-else :key="nowPlaying.id" :song="nowPlaying" @close="stop" @ended="onEnded" />
@@ -285,6 +316,18 @@ async function onClear() {
 .disc-banner__browse { border: 1px solid rgba(255,255,255,.7); background: transparent; color: #fff;
   border-radius: 999px; padding: 7px 14px; cursor: pointer; }
 .disc-banner__close { border: none; background: none; color: #fff; cursor: pointer; font-size: 15px; opacity: .85; }
+.prep-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.7); display: flex;
+  align-items: center; justify-content: center; }
+.prep-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px;
+  text-align: center; max-width: 380px; width: 90%; }
+.prep-box .bi-disc-fill { font-size: 40px; color: var(--accent); }
+.prep-box h3 { margin: 12px 0 4px; }
+.prep-box p { color: var(--text-muted); font-size: 13px; margin: 0 0 16px; }
+.prep-bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.prep-fill { height: 100%; background: var(--accent-grad); transition: width .2s; }
+.prep-pct { font-size: 12px; color: var(--text-muted); }
+.prep-error { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 60;
+  background: var(--danger); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14px; }
 .stage-overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg); }
 .remote-modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .55);
   display: flex; align-items: center; justify-content: center; padding: 20px; }

@@ -4,8 +4,9 @@ const path = require('path')
 const fs = require('fs')
 const { startRemoteServer } = require('./server.cjs')
 const { registerLibraryIpc, readConfig, writeConfig, libraryDir } = require('./library.cjs')
-const { startStreamServer } = require('./stream.cjs')
+const { startMediaServer } = require('./stream.cjs')
 const isoLib = require('./iso.cjs')
+const { transcode } = require('./transcode.cjs')
 
 let win = null
 let remote = null
@@ -53,7 +54,7 @@ async function createWindow() {
   })
 
   remote = await startRemote(readConfig().remotePort)
-  streamer = await startStreamServer(() => [os.tmpdir(), libraryDir(), ...allowedSources])
+  streamer = await startMediaServer(() => [os.tmpdir(), libraryDir(), ...allowedSources])
   setInterval(pollDiscs, 3000) // auto-detect inserted discs, like a DVD player
 
   // Block all page reloads — a refresh would restart the app and abort an
@@ -125,7 +126,7 @@ function discAt(root) {
     root,
     kind,
     label: `${kind} · ${root}`,
-    tracks: files.map((f) => ({ title: path.basename(f, path.extname(f)), url: streamer.streamUrl({ file: f }) })),
+    tracks: files.map((f) => ({ title: path.basename(f, path.extname(f)), src: { file: f } })),
   }
 }
 
@@ -162,15 +163,38 @@ ipcMain.handle('okara:disc-pick', async (_e, kind) => {
   if (isIso) {
     const tracks = isoLib.videoFiles(src).map((v, i) => ({
       title: `${label}-${String(i + 1).padStart(2, '0')}`,
-      url: streamer.streamUrl({ iso: src, extent: String(v.extent), size: String(v.size) }),
+      src: { iso: src, extent: v.extent, size: v.size },
     }))
     return { label, tracks }
   }
   const tracks = walkVideos(src).sort().map((f) => ({
     title: `${label} · ${path.basename(f)}`,
-    url: streamer.streamUrl({ file: f }),
+    src: { file: f },
   }))
   return { label, tracks }
+})
+
+// Prepare a disc/ISO track for smooth playback: transcode it to a complete
+// temp MP4 (proper keyframes + deinterlaced), then return a file URL the
+// player can seek. Progress is reported on okara:disc-progress.
+let discTmpCount = 0
+ipcMain.handle('okara:disc-prepare', async (_e, srcArg) => {
+  const src = srcArg || {}
+  const tmpBase = path.join(os.tmpdir(), `okara-play-${Date.now()}-${discTmpCount++}`)
+  let input = src.file
+  try {
+    if (src.iso) {
+      input = tmpBase + '.' + (isoLib.VIDEO_EXT.find((e) => true) || 'vob')
+      isoLib.extractFile(src.iso, src.extent, src.size, input)
+    }
+    if (!input || !fs.existsSync(input)) throw new Error('Track not found')
+    const out = tmpBase + '.mp4'
+    await transcode(input, out, (f) => win?.webContents.send('okara:disc-progress', { fraction: f }))
+    if (src.iso) { try { fs.unlinkSync(input) } catch { /* */ } }
+    return { url: streamer.fileUrl(out) }
+  } catch (e) {
+    return { error: String((e && e.message) || e) }
+  }
 })
 
 ipcMain.handle('okara:get-pairing', () => ({ url: remote?.url, token: remote?.token }))

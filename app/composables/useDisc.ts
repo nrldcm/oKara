@@ -1,4 +1,4 @@
-export interface DiscTrack { title: string; url: string }
+export interface DiscTrack { title: string; src: unknown }
 export interface InsertedDisc { root: string; kind: string; label: string; tracks: DiscTrack[] }
 
 // Shared state for an inserted DVD/VCD disc (desktop). The main process polls
