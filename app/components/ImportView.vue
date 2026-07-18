@@ -3,6 +3,16 @@ import type { SongSource } from '~/utils/db'
 import { libraryFolderAvailable, canConvertDiscs } from '~/composables/useLibrary'
 
 const library = useLibrary()
+const emit = defineEmits<{ playDisc: [{ title: string; url: string }] }>()
+
+// Direct play from a disc/ISO (live streaming transcode — no import)
+const discLabel = ref('')
+const discTracks = ref<{ title: string; url: string }[]>([])
+
+async function browseDisc(kind: 'iso' | 'folder') {
+  const r = await (window as any).okara?.discPick?.(kind)
+  if (r) { discLabel.value = r.label; discTracks.value = r.tracks }
+}
 
 const source = ref<SongSource>('UltraStar')
 const volumeLabel = ref('')
@@ -161,6 +171,21 @@ function onPick(e: Event) {
         <p class="conv__keep">You can switch tabs or play a song — the conversion keeps running.</p>
       </div>
       <p v-else-if="job.message.value" class="status" :class="job.failed.value ? 'err' : 'ok'">{{ job.message.value }}</p>
+
+      <div class="play-now">
+        <p class="play-now__lead"><i class="bi bi-play-circle" /> <strong>Play now</strong> without importing — plays the disc/ISO track directly (converts live as it plays):</p>
+        <div class="dvd__btns">
+          <button class="ghost" @click="browseDisc('iso')"><i class="bi bi-disc" /> Play from .iso</button>
+          <button class="ghost" @click="browseDisc('folder')"><i class="bi bi-folder2-open" /> Play from disc folder</button>
+        </div>
+        <div v-if="discTracks.length" class="tracks">
+          <div v-for="(t, i) in discTracks" :key="i" class="track" @click="emit('playDisc', t)">
+            <span class="track__no">{{ i + 1 }}</span>
+            <strong class="track__title">{{ t.title }}</strong>
+            <button class="track__play"><i class="bi bi-play-fill" /> Play</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <input ref="fileInput" type="file" multiple hidden
@@ -216,6 +241,16 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .conv__fill { height: 100%; background: var(--accent-grad); transition: width .2s; }
 .conv__text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
 .conv__keep { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+.play-now { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.play-now__lead { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; line-height: 1.5; }
+.tracks { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.track { display: flex; align-items: center; gap: 12px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.track:hover { border-color: var(--accent); }
+.track__no { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; font-size: 13px; }
+.track__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.track__play { border: none; background: var(--accent-grad); color: #fff; border-radius: 999px; padding: 6px 14px;
+  font-weight: 600; cursor: pointer; font-size: 13px; }
 .note { margin-top: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
 .note h3 { margin: 0 0 8px; font-size: 15px; }
 .note ul { margin: 0; padding-left: 18px; line-height: 1.7; color: var(--text-muted); font-size: 14px; }

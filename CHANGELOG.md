@@ -13,6 +13,19 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.4] - 2026-07-18
+
+### Added
+
+- **Direct play from a disc / ISO (desktop)** — a **Play now** section on the
+  Import tab plays a DVD/VCD track straight from an `.iso` image or a disc
+  folder (VIDEO_TS / MPEGAV) **without importing**. A local streaming server
+  live-transcodes the MPEG-2/MPEG-1 track to fragmented MP4 on the fly (reading
+  ISO sectors straight into ffmpeg — no full extraction), so the browser player
+  starts playing after a short buffer. Full player features (remote control,
+  phone-as-mic) work on the streamed track. Use the existing "Import .iso"
+  buttons instead when you want to keep the converted MP4 in your library.
+
 ## [0.9.3] - 2026-07-18
 
 ### Added
@@ -269,7 +282,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.4...HEAD
+[0.9.4]: https://github.com/nrldcm/okara/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/nrldcm/okara/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/nrldcm/okara/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/nrldcm/okara/compare/v0.9.0...v0.9.1

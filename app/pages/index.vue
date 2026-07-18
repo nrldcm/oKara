@@ -36,6 +36,22 @@ function play(song: RuntimeSong) {
   nowPlaying.value = song
 }
 
+// Direct play of a disc/ISO track that live-streams from the host (no import).
+function playDisc(track: { title: string; url: string }) {
+  queue.value = []
+  nowPlaying.value = {
+    id: `disc-${Date.now()}`,
+    number: 0,
+    title: track.title,
+    artist: 'Disc',
+    kind: 'video',
+    source: 'Other',
+    hasScoring: false,
+    createdAt: Date.now(),
+    videoUrl: track.url,
+  } as RuntimeSong
+}
+
 function playNext() {
   if (reserved.value.length) { nowPlaying.value = reserved.value.shift()!; syncReserved(); return }
   if (!queue.value.length) return
@@ -215,7 +231,7 @@ async function onClear() {
 
     <main class="content">
       <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" />
-      <ImportView v-else-if="view === 'import'" />
+      <ImportView v-else-if="view === 'import'" @play-disc="playDisc" />
       <SettingsView v-else @clear="onClear" />
     </main>
 

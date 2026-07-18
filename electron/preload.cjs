@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('okara', {
     setPort: (port) => ipcRenderer.invoke('okara:set-remote-port', port),
   },
 
+  // Direct play from a disc / ISO (live streaming transcode). Returns
+  // { label, tracks: [{ title, url }] } or null if cancelled.
+  discPick: (kind) => ipcRenderer.invoke('okara:disc-pick', kind),
+
   library: {
     info: () => ipcRenderer.invoke('okara:lib-info'),
     chooseDir: () => ipcRenderer.invoke('okara:lib-choose-dir'),

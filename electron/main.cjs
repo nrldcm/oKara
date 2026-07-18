@@ -1,10 +1,18 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron')
+const os = require('os')
 const path = require('path')
+const fs = require('fs')
 const { startRemoteServer } = require('./server.cjs')
-const { registerLibraryIpc, readConfig, writeConfig } = require('./library.cjs')
+const { registerLibraryIpc, readConfig, writeConfig, libraryDir } = require('./library.cjs')
+const { startStreamServer } = require('./stream.cjs')
+const isoLib = require('./iso.cjs')
 
 let win = null
 let remote = null
+let streamer = null
+// Sources the user explicitly opened for "play from disc/ISO" — allowed for
+// the local transcode-stream server.
+const allowedSources = new Set()
 
 // Resolves in dev and inside the packaged asar (build/ is bundled — see
 // electron-builder.yml `files`). Used for the window / taskbar header icon;
@@ -45,6 +53,7 @@ async function createWindow() {
   })
 
   remote = await startRemote(readConfig().remotePort)
+  streamer = await startStreamServer(() => [os.tmpdir(), libraryDir(), ...allowedSources])
 
   // Block all page reloads — a refresh would restart the app and abort an
   // in-progress disc conversion / import. Covers F5, Ctrl/Cmd+R,
@@ -58,6 +67,45 @@ async function createWindow() {
 
   await win.loadFile(path.join(__dirname, '..', '.output', 'public', 'index.html'))
 }
+
+// --- Direct play from a disc / ISO (live streaming transcode) ---
+
+const VIDEO_EXT = ['vob', 'dat', 'mpg', 'mpeg', 'm2v', 'mpv', 'vro', 'avi', 'mp4', 'mkv', 'm4v']
+const isVid = (p) => VIDEO_EXT.includes((p.split('.').pop() || '').toLowerCase())
+
+function walkVideos(dir, out = []) {
+  for (const it of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, it.name)
+    if (it.isDirectory()) walkVideos(p, out)
+    else if (it.isFile() && isVid(p)) out.push(p)
+  }
+  return out
+}
+
+ipcMain.handle('okara:disc-pick', async (_e, kind) => {
+  const isIso = kind === 'iso'
+  const res = await dialog.showOpenDialog(win, {
+    title: isIso ? 'Play from disc image (.iso)' : 'Play from disc folder (VIDEO_TS / MPEGAV)',
+    properties: isIso ? ['openFile'] : ['openDirectory'],
+    filters: isIso ? [{ name: 'Disc image', extensions: ['iso'] }] : undefined,
+  })
+  if (res.canceled || !res.filePaths.length) return null
+  const src = res.filePaths[0]
+  allowedSources.add(path.resolve(src))
+  const label = path.parse(src).name
+  if (isIso) {
+    const tracks = isoLib.videoFiles(src).map((v, i) => ({
+      title: `${label}-${String(i + 1).padStart(2, '0')}`,
+      url: streamer.streamUrl({ iso: src, extent: String(v.extent), size: String(v.size) }),
+    }))
+    return { label, tracks }
+  }
+  const tracks = walkVideos(src).sort().map((f) => ({
+    title: `${label} · ${path.basename(f)}`,
+    url: streamer.streamUrl({ file: f }),
+  }))
+  return { label, tracks }
+})
 
 ipcMain.handle('okara:get-pairing', () => ({ url: remote?.url, token: remote?.token }))
 ipcMain.on('okara:state', (_e, state) => remote?.broadcastState(state))
