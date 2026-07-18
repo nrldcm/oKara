@@ -13,6 +13,22 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.16] - 2026-07-18
+
+### Fixed
+
+- **Import appearing to stall (tracks stuck at "100%", no progress)** — three
+  causes, all fixed:
+  - **Too many tracks at once** thrashed the disk (every track both extracts a
+    large VOB and runs ffmpeg). The parallel pool is now capped at **4**, which
+    still gives a real speedup but keeps the disk from gridlocking.
+  - **The final `+faststart` remux** rewrote the whole file at the end, so big
+    tracks sat at "100%" while finalizing. It's **removed** — playback never
+    needed it (files play complete, locally or with range requests), so a track
+    now finishes the instant encoding ends.
+  - The per-track bar could show **"100%" while still finalizing**; it now caps
+    at 99% until the track is truly done.
+
 ## [0.9.15] - 2026-07-18
 
 ### Fixed
@@ -450,7 +466,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.15...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.16...HEAD
+[0.9.16]: https://github.com/nrldcm/okara/compare/v0.9.15...v0.9.16
 [0.9.15]: https://github.com/nrldcm/okara/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/nrldcm/okara/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/nrldcm/okara/compare/v0.9.12...v0.9.13

@@ -118,15 +118,16 @@ const ext = (p) => (p.split('.').pop() || '').toLowerCase()
  * Import DVD/VCD .iso files: extract each video track, transcode it to MP4 in
  * the library folder, and report progress. Returns library entries.
  */
-// Saturate the CPU: run as many parallel transcodes as there are logical cores
-// (capped so memory stays sane), and give each ffmpeg a fair slice of threads
-// so they don't all fight over every core. A multi-track disc then converts in
-// roughly (tracks / cores) the time of one-at-a-time.
+// Convert several tracks at once, but not too many: each track both extracts a
+// big VOB (disk I/O) and runs ffmpeg (CPU). Too many at once thrashes the disk
+// (especially an HDD) so everything crawls and looks stuck. A small pool — up
+// to 4 — is the sweet spot: real parallel speedup without I/O gridlock. Each
+// ffmpeg then gets a fair share of the cores.
 function importCores() {
   return Math.max(2, os.cpus()?.length || 2)
 }
 function importConcurrency(jobCount) {
-  return Math.max(1, Math.min(importCores(), 12, jobCount))
+  return Math.max(1, Math.min(4, importCores(), jobCount))
 }
 
 async function importIsos(isoPaths, onProgress) {

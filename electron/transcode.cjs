@@ -52,7 +52,11 @@ function transcode(input, output, onProgress, opts = {}) {
         '-ac', '2', // keep stereo for the L/R minus-one trick
         '-max_muxing_queue_size', '1024',
         '-avoid_negative_ts', 'make_zero',
-        '-movflags', '+faststart',
+        // No +faststart: we always play a COMPLETE file (file:// in the library,
+        // or the media server with Range for disc play), so moving the moov to
+        // the front is unnecessary — and its final full-file remux pass made big
+        // tracks appear stuck at "100%". Dropping it lets a track finish the
+        // instant encoding ends.
         output,
       ]
       const ff = spawn(ffmpegPath(), args)
@@ -62,7 +66,9 @@ function transcode(input, output, onProgress, opts = {}) {
         const m = /time=(\d+):(\d+):(\d+\.\d+)/.exec(d.toString())
         if (m && durationSec > 0 && onProgress) {
           const t = (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3])
-          onProgress(Math.min(0.999, t / durationSec))
+          // Cap in-progress at 99% so a still-finalizing track never shows a
+          // misleading "100%"; 100% is only reached on successful close.
+          onProgress(Math.min(0.99, t / durationSec))
         }
       })
       ff.on('error', (err) => {
