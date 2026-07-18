@@ -5,11 +5,13 @@ import { FX_PRESETS, MIC_MODES, applyMicMode } from '~/composables/useSettings'
 const library = useLibrary()
 const { settings, load: loadSettings } = useSettings()
 const remote = useRemote()
+const pitch = usePitch()
 const bus = useRemoteBus()
 const { theme, init: initTheme, toggle: toggleTheme } = useTheme()
 
 type View = 'library' | 'import' | 'settings'
 const view = ref<View>('library')
+const showRemoteModal = ref(false)
 
 const nowPlaying = ref<RuntimeSong | null>(null)
 const queue = ref<RuntimeSong[]>([])
@@ -164,6 +166,8 @@ const offCommand = bus.onCommand((c) => {
     case 'fx-echo-time': setFx('echoTime', c.value); break
     case 'fx-bass': setFx('bass', c.value); break
     case 'fx-treble': setFx('treble', c.value); break
+    case 'phone-mic-on': pitch.setExternal(true); bus.flash('Phone mic connected'); break
+    case 'phone-mic-off': pitch.setExternal(false); bus.flash('Phone mic disconnected'); break
   }
 })
 onBeforeUnmount(offCommand)
@@ -183,7 +187,7 @@ async function onClear() {
         <button :class="{ active: view === 'settings' }" @click="view = 'settings'">Settings</button>
       </div>
       <div class="actions">
-        <button v-if="remote.available.value" class="pill" @click="view = 'settings'">
+        <button v-if="remote.available.value" class="pill" @click="showRemoteModal = true">
           <i class="bi bi-phone-fill" /><span class="pill__label"> Remote</span>
         </button>
         <button class="pill icon" :title="theme === 'dark' ? 'Light mode' : 'Dark mode'" @click="toggleTheme">
@@ -191,6 +195,15 @@ async function onClear() {
         </button>
       </div>
     </nav>
+
+    <Teleport to="body">
+      <div v-if="showRemoteModal" class="remote-modal-backdrop" @click.self="showRemoteModal = false">
+        <div class="remote-modal">
+          <button class="remote-modal__close" @click="showRemoteModal = false"><i class="bi bi-x-lg" /></button>
+          <RemotePanel />
+        </div>
+      </div>
+    </Teleport>
 
     <main class="content">
       <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" />
@@ -222,6 +235,13 @@ async function onClear() {
 .pill.icon { padding: 8px 12px; }
 .content { flex: 1; overflow-y: auto; padding: 20px 22px; max-width: 1100px; width: 100%; margin: 0 auto; }
 .stage-overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg); }
+.remote-modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .55);
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.remote-modal { position: relative; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+.remote-modal__close { position: absolute; top: 12px; right: 14px; border: none; background: none;
+  color: var(--text-muted); font-size: 18px; cursor: pointer; z-index: 1; }
 
 @media (max-width: 560px) {
   .topbar { gap: 10px; padding: 10px 14px; flex-wrap: wrap; }

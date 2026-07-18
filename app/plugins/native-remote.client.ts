@@ -9,6 +9,15 @@ interface RemoteServerPlugin {
   addListener(event: 'command', cb: (cmd: { action: string; value?: unknown }) => void): Promise<unknown>
   addListener(event: 'remoteCount', cb: (data: { count: number }) => void): Promise<unknown>
   addListener(event: 'networkChanged', cb: () => void): Promise<unknown>
+  addListener(event: 'micAudio', cb: (data: { pcm: string }) => void): Promise<unknown>
+}
+
+/** Base64 (Android plugin event) → ArrayBuffer for the pitch detector. */
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes.buffer
 }
 
 interface MicRoutePlugin {
@@ -63,6 +72,9 @@ export default defineNuxtPlugin(() => {
     },
     onNetworkChanged: (cb: () => void) => {
       remote.addListener('networkChanged', cb)
+    },
+    onMicAudio: (cb: (pcm: ArrayBuffer) => void) => {
+      remote.addListener('micAudio', (data) => cb(base64ToArrayBuffer(data.pcm)))
     },
     sendState: (state: unknown) => {
       remote.sendState({ state })

@@ -17,8 +17,18 @@ export interface RemoteSongEntry {
 // BroadcastChannel exists (web demo mode).
 let localChannel: BroadcastChannel | null = null
 
+/** Int16 mono PCM (as sent by the phone) → Float32 for the pitch detector. */
+function pcm16ToFloat32(buf: ArrayBuffer): Float32Array {
+  const i16 = new Int16Array(buf)
+  const f32 = new Float32Array(i16.length)
+  for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768
+  return f32
+}
+const PHONE_MIC_RATE = 16000
+
 export function useRemote() {
   const bus = useRemoteBus()
+  const pitch = usePitch()
   const available = useState('okara-remote-available', () => false)
   const pairing = useState<PairingInfo | null>('okara-remote-pairing', () => null)
   const connected = useState('okara-remote-connected', () => 0)
@@ -59,6 +69,8 @@ export function useRemote() {
       available.value = true
       bridge.onCommand((cmd: RemoteCommand) => bus.dispatch(cmd.action, cmd.value))
       bridge.onRemoteCount?.((n: number) => { connected.value = n })
+      // Phone-as-mic: streamed PCM frames feed the pitch detector.
+      bridge.onMicAudio?.((pcm: ArrayBuffer) => pitch.feedExternal(pcm16ToFloat32(pcm), PHONE_MIC_RATE))
       // Wi-Fi came or went: give the interfaces a beat to settle, then
       // refresh the QR. (Hotspot toggles don't fire this — RemotePanel also
       // re-polls while there's no network.)
@@ -79,6 +91,7 @@ export function useRemote() {
       channel.onmessage = (e) => {
         const d = e.data
         if (d?.type === 'cmd') bus.dispatch(d.action, d.value)
+        if (d?.type === 'mic' && d.pcm) pitch.feedExternal(pcm16ToFloat32(d.pcm), PHONE_MIC_RATE)
         if (d?.type === 'hello') {
           channel.postMessage({ type: 'state', state: plain(bus.state.value) })
           channel.postMessage({ type: 'songs', songs: JSON.parse(JSON.stringify(lastSongs.value)) })

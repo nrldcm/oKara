@@ -14,6 +14,11 @@ const iconPath = path.join(__dirname, '..', 'build', 'icon.ico')
 const remoteCallbacks = {
   onCommand: (cmd) => win?.webContents.send('okara:command', cmd),
   onCountChange: (n) => win?.webContents.send('okara:remote-count', n),
+  // Phone-as-mic PCM frames → renderer (as a transferable ArrayBuffer).
+  onAudio: (buf) => {
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    win?.webContents.send('okara:mic-audio', ab)
+  },
 }
 
 async function startRemote(port) {

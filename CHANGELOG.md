@@ -13,6 +13,34 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.8.0] - 2026-07-18
+
+### Added
+
+- **Phone as microphone** — the remote can now use the **phone itself as the
+  karaoke mic**. Tap **Sing** on the remote: the singer hears their own voice
+  **locally from the phone** (near-zero latency, never crosses the network),
+  while the host scores the performance and plays the relayed voice through the
+  main speakers for the room. The host **stops using its own built-in mic**
+  entirely while a phone mic is active, so there is no feedback/echo.
+- The remote is now served over **HTTPS with a self-signed certificate**
+  (required for the phone mic's secure context) on both the desktop and Android
+  hosts. Phones show a one-time "not secure — proceed" warning to accept.
+- **Remote QR modal** — the topbar **Remote** button now opens the pairing QR
+  in a modal, in addition to appearing in Settings.
+- **About / disclaimer** in Settings and the README — authorship, copyright,
+  MIT licence, and a clear disclaimer that okara ships no content and does not
+  condone piracy (it plays media you already own).
+
+### Fixed
+
+- **Queue didn't auto-play the next song** — reserved/queued songs now
+  auto-start the moment they come up (karaoke-machine behavior), instead of
+  waiting on a manual Play.
+- Turning on "Hear my voice" while using the phone mic no longer routes the
+  host's own microphone (which caused painful echo/static); the host mic is
+  never monitored when the phone is the mic.
+
 ## [0.7.0] - 2026-07-18
 
 ### Added
@@ -171,7 +199,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/nrldcm/okara/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/nrldcm/okara/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/nrldcm/okara/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/nrldcm/okara/compare/v0.5.0...v0.6.0

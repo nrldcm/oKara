@@ -27,6 +27,8 @@ public class RemoteServer extends NanoWSD {
         void onCommand(JSONObject cmd);
 
         void onCountChange(int count);
+
+        void onAudio(byte[] pcm);
     }
 
     private static final byte[] PING_PAYLOAD = new byte[0];
@@ -51,7 +53,16 @@ public class RemoteServer extends NanoWSD {
         this.token = hex.toString();
     }
 
+    private boolean secure = false;
+
     public void startServer() throws IOException {
+        // HTTPS so the phone-as-mic getUserMedia works; HTTP fallback on failure.
+        try {
+            makeSecure(TlsUtil.serverSocketFactory(), null);
+            secure = true;
+        } catch (Exception e) {
+            secure = false;
+        }
         start(0, true); // no socket read timeout — WebSockets stay open, ping keeps them fresh
         pingTimer.schedule(new TimerTask() {
             @Override
@@ -78,7 +89,8 @@ public class RemoteServer extends NanoWSD {
 
     public String getUrl() {
         String ip = lanIp();
-        return "http://" + (ip != null ? ip : "127.0.0.1") + ":" + getListeningPort() + "/?t=" + token;
+        String scheme = secure ? "https" : "http";
+        return scheme + "://" + (ip != null ? ip : "127.0.0.1") + ":" + getListeningPort() + "/?t=" + token;
     }
 
     /** True when a phone could actually reach this device (Wi-Fi or hotspot up). */
@@ -210,6 +222,12 @@ public class RemoteServer extends NanoWSD {
 
         @Override
         protected void onMessage(WebSocketFrame message) {
+            // Binary frames are phone-as-mic PCM (Int16 mono @ 16 kHz); text is JSON.
+            if (message.getOpCode() == WebSocketFrame.OpCode.Binary) {
+                byte[] payload = message.getBinaryPayload();
+                if (payload != null && payload.length > 0) listener.onAudio(payload);
+                return;
+            }
             try {
                 JSONObject msg = new JSONObject(message.getTextPayload());
                 if ("cmd".equals(msg.optString("type"))) {

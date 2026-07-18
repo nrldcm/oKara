@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('okara', {
   getPairing: () => ipcRenderer.invoke('okara:get-pairing'),
   onCommand: (cb) => ipcRenderer.on('okara:command', (_e, cmd) => cb(cmd)),
   onRemoteCount: (cb) => ipcRenderer.on('okara:remote-count', (_e, n) => cb(n)),
+  onMicAudio: (cb) => ipcRenderer.on('okara:mic-audio', (_e, buf) => cb(buf)),
   sendState: (state) => ipcRenderer.send('okara:state', state),
   sendSongs: (songs) => ipcRenderer.send('okara:songs', songs),
 

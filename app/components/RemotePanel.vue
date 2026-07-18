@@ -38,7 +38,15 @@ watch([pairing, theme], renderQr)
     <h3>Phone remote</h3>
     <p class="desc">
       Scan the QR with your phone to turn it into a remote control — play, pause,
-      next, previous, stop, and volume, just like a real karaoke remote.
+      next, previous, stop, volume, browse/search the songbook, and even
+      <strong>sing using the phone as the microphone</strong>.
+    </p>
+    <p class="secure-note">
+      <i class="bi bi-shield-lock" /> The remote is served over HTTPS with a
+      self-signed certificate (needed so the phone mic works). Your phone will
+      show a one-time <em>"Not secure / proceed"</em> warning — tap
+      <strong>Advanced → Proceed</strong> to continue. It's your own device on
+      your own network; nothing leaves the LAN.
     </p>
 
     <div v-if="available && offline" class="offline">
@@ -84,7 +92,9 @@ watch([pairing, theme], renderQr)
 
 <style scoped>
 .remote h3 { margin: 0 0 6px; font-size: 15px; }
-.desc { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
+.desc { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
+.secure-note { font-size: 12px; color: var(--text-faint); line-height: 1.5; margin-bottom: 16px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
 .pair { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
 .qr-wrap { background: #fff; border-radius: 12px; padding: 8px; line-height: 0; }
 .qr { border-radius: 6px; }

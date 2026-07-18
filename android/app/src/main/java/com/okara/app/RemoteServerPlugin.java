@@ -99,6 +99,13 @@ public class RemoteServerPlugin extends Plugin {
                     data.put("count", count);
                     notifyListeners("remoteCount", data);
                 }
+
+                @Override
+                public void onAudio(byte[] pcm) {
+                    JSObject data = new JSObject();
+                    data.put("pcm", android.util.Base64.encodeToString(pcm, android.util.Base64.NO_WRAP));
+                    notifyListeners("micAudio", data);
+                }
             });
     }
 

@@ -105,6 +105,11 @@
     display: flex; align-items: center; justify-content: center; background: var(--surface2); color: var(--text); }
   .sg-btn.play { background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; }
   .sg-note { color: var(--faint); font-size: 12px; text-align: center; padding: 8px 0; }
+  .sing { width: 100%; margin-top: 6px; padding: 14px; border-radius: 14px; border: none; cursor: pointer;
+    font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--surface2); color: var(--text); }
+  .sing.on { background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; }
+  .sing-hint { font-size: 12px; color: var(--muted); text-align: center; min-height: 15px; }
 </style>
 </head>
 <body>
@@ -138,6 +143,14 @@
     </div>
     <label class="vol"><span class="vol-label"><span data-icon="music-note-beamed"></span> Music</span>
       <input type="range" min="0" max="1" step="0.01" value="1" oninput="cmd('volume', Number(this.value))" />
+      <span data-icon="volume-up-fill"></span></label>
+
+    <button class="sing" id="singBtn" onclick="toggleMic()">
+      <span data-icon="mic-fill"></span> <span id="singLabel">Sing — use this phone as mic</span>
+    </button>
+    <p class="sing-hint" id="singHint"></p>
+    <label class="vol" id="singVolRow" style="display:none"><span class="vol-label"><span data-icon="mic-fill"></span> My voice</span>
+      <input type="range" id="singVol" min="0" max="1.5" step="0.01" value="1" oninput="setMicVol(Number(this.value))" />
       <span data-icon="volume-up-fill"></span></label>
   </div>
 
@@ -231,7 +244,8 @@
   function reserveNumber() { if (dialed) { cmd('reserve-number', Number(dialed)); clearDial() } }
 
   function connect() {
-    ws = new WebSocket('ws://' + location.host + '/ws?t=' + token)
+    var wsScheme = location.protocol === 'https:' ? 'wss://' : 'ws://'
+    ws = new WebSocket(wsScheme + location.host + '/ws?t=' + token)
     ws.onopen = function () { status.textContent = 'Connected' }
     ws.onclose = function () { status.textContent = 'Disconnected — retrying…'; setTimeout(connect, 1500) }
     ws.onmessage = function (e) {
@@ -392,6 +406,81 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
     })
   }
+
+  // ---- Phone-as-mic: local monitor + stream PCM (Int16 @ 16 kHz) to host ----
+  var micCtx = null, micStream = null, micNode = null, micGain = null, micSource = null, micOn = false
+  var TARGET_RATE = 16000
+  var singBtn = document.getElementById('singBtn')
+  var singLabel = document.getElementById('singLabel')
+  var singHint = document.getElementById('singHint')
+
+  function toggleMic() { micOn ? stopMic() : startMic() }
+
+  function startMic() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      singHint.textContent = 'Mic needs a secure (https) page — open the QR link, accept the security warning.'
+      return
+    }
+    navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    }).then(function (stream) {
+      micStream = stream
+      // Lowest-latency monitor the browser allows: interactive hint + a direct
+      // source→gain→speaker path (no extra nodes). What the singer hears never
+      // touches the network — only the scoring stream does.
+      var AC = window.AudioContext || window.webkitAudioContext
+      try { micCtx = new AC({ latencyHint: 'interactive' }) } catch (e) { micCtx = new AC() }
+      micSource = micCtx.createMediaStreamSource(stream)
+      micGain = micCtx.createGain()
+      micGain.gain.value = Number(document.getElementById('singVol').value)
+      // Local monitor: the singer hears themselves from THIS phone (low latency).
+      micSource.connect(micGain)
+      micGain.connect(micCtx.destination)
+      // Capture path: downsample to 16 kHz mono Int16 and stream to the host.
+      var bufSize = 2048
+      micNode = micCtx.createScriptProcessor(bufSize, 1, 1)
+      micSource.connect(micNode)
+      micNode.connect(micCtx.destination) // required for onaudioprocess to fire (muted below)
+      var silent = micCtx.createGain(); silent.gain.value = 0
+      micNode.disconnect(); micNode.connect(silent); silent.connect(micCtx.destination)
+      var ratio = micCtx.sampleRate / TARGET_RATE
+      micNode.onaudioprocess = function (e) {
+        if (!micOn || !ws || ws.readyState !== 1) return
+        var input = e.inputBuffer.getChannelData(0)
+        var outLen = Math.floor(input.length / ratio)
+        var pcm = new Int16Array(outLen)
+        for (var i = 0; i < outLen; i++) {
+          var s = input[Math.floor(i * ratio)]
+          s = s < -1 ? -1 : s > 1 ? 1 : s
+          pcm[i] = s * 32767
+        }
+        ws.send(pcm.buffer)
+      }
+      micOn = true
+      singBtn.className = 'sing on'
+      singLabel.textContent = 'Singing — tap to stop'
+      singHint.textContent = 'You are the mic. Hold the phone near your mouth; you hear yourself here.'
+      document.getElementById('singVolRow').style.display = 'flex'
+      cmd('phone-mic-on')
+    }).catch(function () {
+      singHint.textContent = 'Mic permission denied. Allow microphone access and try again.'
+    })
+  }
+
+  function stopMic() {
+    micOn = false
+    cmd('phone-mic-off')
+    try { if (micNode) micNode.onaudioprocess = null } catch (e) {}
+    try { if (micStream) micStream.getTracks().forEach(function (t) { t.stop() }) } catch (e) {}
+    try { if (micCtx) micCtx.close() } catch (e) {}
+    micCtx = micStream = micNode = micGain = micSource = null
+    singBtn.className = 'sing'
+    singLabel.textContent = 'Sing — use this phone as mic'
+    singHint.textContent = ''
+    document.getElementById('singVolRow').style.display = 'none'
+  }
+
+  function setMicVol(v) { if (micGain) micGain.gain.value = v }
 
   if (!token) status.textContent = 'Missing pairing token — scan the QR again.'
   else connect()

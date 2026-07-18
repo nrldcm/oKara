@@ -231,6 +231,32 @@ function doClear() {
       </div>
     </div>
 
+    <div class="block">
+      <h3>About okara</h3>
+      <p class="muted">
+        <strong>okara</strong> is an open karaoke player — UltraStar scoring,
+        vocal effects, a phone remote, and a searchable songbook. Built by
+        <strong>nrldcm</strong>.
+      </p>
+      <p class="muted small">© 2026 nrldcm · Released under the MIT License.</p>
+
+      <h4 class="disc-title">Disclaimer</h4>
+      <p class="muted small">
+        okara was made so you can keep enjoying karaoke discs (CDs/VCDs/DVDs)
+        you already own but can no longer play on aging physical players — it
+        plays your own media files and does not include, host, or distribute any
+        songs, lyrics, or karaoke content.
+      </p>
+      <p class="muted small">
+        okara does not promote or encourage piracy. If you obtain or import
+        copyrighted material without a licence, that is solely your
+        responsibility — the developer neither provides such content nor endorses
+        it. Only use files you legally own. The software is provided "as is",
+        without warranty of any kind; the author is not liable for how it is
+        used or for any content users add to it.
+      </p>
+    </div>
+
     <div v-if="hasRemoteConfig" class="advanced-row">
       <button class="advanced-btn" @click="openAdvanced"><i class="bi bi-gear-wide-connected" /> Advanced settings</button>
     </div>
@@ -296,7 +322,8 @@ h1 { font-size: 26px; margin: 0 0 24px; }
 .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); }
 .danger p { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; }
 .muted { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; line-height: 1.5; }
-.muted.small { font-size: 12px; color: var(--text-faint); margin: 10px 0 0; }
+.muted.small { font-size: 12px; color: var(--text-faint); margin: 10px 0 0; line-height: 1.55; }
+.disc-title { margin: 16px 0 0; font-size: 13px; color: var(--text-muted); }
 .dir { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
   padding: 10px 14px; font-size: 13px; word-break: break-all; }
 .bt-err { color: var(--danger); font-size: 13px; margin: 10px 0 0; }

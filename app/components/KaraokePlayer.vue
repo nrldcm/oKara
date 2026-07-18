@@ -3,7 +3,7 @@ import type { RuntimeSong } from '~/composables/useLibrary'
 import { beatToMs, parseUltraStar, type Line, type Note } from '~/utils/ultrastar'
 import { midiToFreq, pitchClassDistance, relativePitchToMidi } from '~/utils/pitch'
 
-const props = defineProps<{ song: RuntimeSong }>()
+const props = withDefaults(defineProps<{ song: RuntimeSong; autoplay?: boolean }>(), { autoplay: true })
 const emit = defineEmits<{ close: []; ended: [] }>()
 
 const { settings } = useSettings()
@@ -408,6 +408,9 @@ onMounted(() => {
   palette = readPalette()
   resize()
   window.addEventListener('resize', resize)
+  // Auto-start so a queued song plays the moment it comes up (karaoke-machine
+  // behavior); the browser allows it because prior playback engaged media.
+  if (props.autoplay) nextTick(() => { play() })
 })
 onBeforeUnmount(() => {
   disposed = true

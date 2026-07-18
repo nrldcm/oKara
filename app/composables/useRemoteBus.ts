@@ -4,7 +4,8 @@ export interface RemoteCommand {
     | 'volume' | 'seek' | 'play-number' | 'reserve-number'
     | 'reserve-remove' | 'reserve-up' | 'reserve-down'
     | 'mic-mode' | 'fx-monitor' | 'fx-preset' | 'fx-volume' | 'fx-reverb'
-    | 'fx-echo' | 'fx-echo-time' | 'fx-bass' | 'fx-treble' | ''
+    | 'fx-echo' | 'fx-echo-time' | 'fx-bass' | 'fx-treble'
+    | 'phone-mic-on' | 'phone-mic-off' | ''
   value?: number | string
   seq: number
 }

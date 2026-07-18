@@ -40,6 +40,22 @@ files** with the lyrics burned in — those can be imported and played. The
 **encrypted chip/cartridge data** (e.g. a Magic Sing cartridge) is proprietary
 and cannot be extracted. Only use files you legally own.
 
+## Disclaimer
+
+okara was made so you can keep enjoying karaoke discs (CDs/VCDs/DVDs) you
+**already own** but can no longer play on aging physical players. It plays your
+own media files and **does not include, host, or distribute** any songs,
+lyrics, or karaoke content.
+
+okara does **not** promote or encourage piracy. If you obtain or import
+copyrighted material without a licence, that is **solely your responsibility** —
+the developer neither provides such content nor endorses it. Only use files you
+legally own. The software is provided **"as is"**, without warranty of any kind;
+the author is not liable for how the software is used or for any content users
+add to it.
+
+© 2026 nrldcm · MIT License.
+
 ## Download (Windows & Android)
 
 Grab the latest builds from the **Releases** page:
@@ -61,6 +77,14 @@ signing key).
 **No Wi-Fi?** Turn on the tablet's **Hotspot**, connect the phone to it, and
 the remote works with no router or internet at all. A paired **Bluetooth
 mic** (headset / karaoke mic) can be used via Settings → Bluetooth microphone.
+
+**Phone as microphone:** the remote can use the **phone itself as the mic** —
+the singer hears their own voice locally from the phone (near-zero latency, no
+network in the heard path) while the host scores from the streamed audio. This
+needs a secure page, so the remote is served over **HTTPS with a self-signed
+certificate**; your phone shows a one-time *"Not secure — proceed"* warning to
+accept (it's your own device on your own LAN). Tap **Sing — use this phone as
+mic** on the remote.
 
 Releases are versioned ([SemVer](https://semver.org)) and every change is
 recorded in [`CHANGELOG.md`](CHANGELOG.md). See [`RELEASING.md`](RELEASING.md)

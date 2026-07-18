@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { RuntimeSong } from '~/composables/useLibrary'
 
-const props = defineProps<{ song: RuntimeSong }>()
+const props = withDefaults(defineProps<{ song: RuntimeSong; autoplay?: boolean }>(), { autoplay: true })
 const emit = defineEmits<{ close: []; ended: [] }>()
 const { settings } = useSettings()
 
@@ -68,6 +68,11 @@ const offCommand = bus.onCommand((c) => {
     case 'restart': el.currentTime = 0; onPlay(); el.play().catch(() => {}); break
     case 'volume': el.volume = Math.min(1, Math.max(0, c.value ?? 1)); break
   }
+})
+
+onMounted(() => {
+  // Auto-start so a queued song plays immediately when it comes up.
+  if (props.autoplay) nextTick(() => { mediaEl.value?.play().catch(() => {}) })
 })
 
 onBeforeUnmount(() => { offCommand(); ctx?.close().catch(() => {}) })
