@@ -91,12 +91,27 @@
   .fx-slider .top { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
   .fx-slider .top em { font-style: normal; color: var(--text); }
   .fx-slider input { width: 100%; accent-color: var(--accent1); }
+  .songs { width: 100%; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+  .song-search { width: 100%; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 15px; }
+  .song-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+  .sg-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 8px 10px; }
+  .sg-num { font-weight: 700; color: var(--accent1); font-size: 13px; white-space: nowrap; }
+  .sg-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .sg-info strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sg-info span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sg-btn { width: 40px; height: 40px; border-radius: 10px; border: none; cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center; background: var(--surface2); color: var(--text); }
+  .sg-btn.play { background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; }
+  .sg-note { color: var(--faint); font-size: 12px; text-align: center; padding: 8px 0; }
 </style>
 </head>
 <body>
   <h1><span data-icon="mic-fill"></span> okara remote</h1>
   <div class="tabs">
     <button id="tab-remote" class="active" onclick="setTab('remote')"><span data-icon="grid-3x3-gap-fill"></span> Remote</button>
+    <button id="tab-songs" onclick="setTab('songs')"><span data-icon="search"></span> Songs</button>
     <button id="tab-queue" onclick="setTab('queue')"><span data-icon="list-ul"></span> Queue<span class="count hidden" id="qcount"></span></button>
     <button id="tab-mic" onclick="setTab('mic')"><span data-icon="mic-fill"></span> Mic</button>
   </div>
@@ -127,6 +142,11 @@
   </div>
 
   <div id="queueTab" class="queue hidden"></div>
+
+  <div id="songsTab" class="songs hidden">
+    <input id="songSearch" class="song-search" type="search" placeholder="Search number, song, or artist…" />
+    <div id="songList" class="song-list"></div>
+  </div>
 
   <div id="micTab" class="mic hidden">
     <div class="mic-modes" id="micModes"></div>
@@ -162,7 +182,8 @@
     'x-lg': '<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>',
     'mic-mute-fill': '<path d="M5 3a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0z"/><path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5"/><path d="M1.5 1.5l13 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
     'headphones': '<path d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v6a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5"/>',
-    'music-note-beamed': '<path d="M6 13c0 1.105-1.12 2-2.5 2S1 14.105 1 13s1.12-2 2.5-2 2.5.895 2.5 2m9-2c0 1.105-1.12 2-2.5 2s-2.5-.895-2.5-2 1.12-2 2.5-2 2.5.895 2.5 2"/><path fill-rule="evenodd" d="M14 11V2h1v9zM6 3v10H5V3z"/><path d="M5 2.905a1 1 0 0 1 .9-.995l8-.8a1 1 0 0 1 1.1.995V3L5 4z"/>'
+    'music-note-beamed': '<path d="M6 13c0 1.105-1.12 2-2.5 2S1 14.105 1 13s1.12-2 2.5-2 2.5.895 2.5 2m9-2c0 1.105-1.12 2-2.5 2s-2.5-.895-2.5-2 1.12-2 2.5-2 2.5.895 2.5 2"/><path fill-rule="evenodd" d="M14 11V2h1v9zM6 3v10H5V3z"/><path d="M5 2.905a1 1 0 0 1 .9-.995l8-.8a1 1 0 0 1 1.1.995V3L5 4z"/>',
+    'search': '<path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>'
   }
   function svg(name) { return '<svg class="ic" viewBox="0 0 16 16">' + (ICONS[name] || '') + '</svg>' }
   document.querySelectorAll('[data-icon]').forEach(function (el) { el.innerHTML = svg(el.getAttribute('data-icon')) })
@@ -192,14 +213,17 @@
   function setTab(t) {
     tab = t; confirmIdx = null
     document.getElementById('tab-remote').className = t === 'remote' ? 'active' : ''
+    document.getElementById('tab-songs').className = t === 'songs' ? 'active' : ''
     document.getElementById('tab-queue').className = t === 'queue' ? 'active' : ''
     document.getElementById('tab-mic').className = t === 'mic' ? 'active' : ''
     document.getElementById('remoteTab').className = t === 'remote' ? '' : 'hidden'
+    document.getElementById('songsTab').className = t === 'songs' ? 'songs' : 'songs hidden'
     queueTab.className = t === 'queue' ? 'queue' : 'queue hidden'
     document.getElementById('micTab').className = t === 'mic' ? 'mic' : 'mic hidden'
     renderQueue()
+    renderSongs()
   }
-  function press(d) { if (dialed.length < 6) { dialed += d; renderDial() } }
+  function press(d) { if (dialed.length < 8) { dialed += d; renderDial() } }
   function backspace() { dialed = dialed.slice(0, -1); renderDial() }
   function clearDial() { dialed = ''; renderDial() }
   function renderDial() { numEl.textContent = dialed || '––––' }
@@ -211,8 +235,47 @@
     ws.onopen = function () { status.textContent = 'Connected' }
     ws.onclose = function () { status.textContent = 'Disconnected — retrying…'; setTimeout(connect, 1500) }
     ws.onmessage = function (e) {
-      try { var msg = JSON.parse(e.data); if (msg.type === 'state') render(msg.state) } catch (err) {}
+      try {
+        var msg = JSON.parse(e.data)
+        if (msg.type === 'state') render(msg.state)
+        if (msg.type === 'songs') { songBook = msg.songs || []; renderSongs() }
+      } catch (err) {}
     }
+  }
+
+  // ---- Songs tab: searchable songbook synced from the host ----
+  var songBook = []
+  var SONG_LIMIT = 80
+  document.getElementById('songSearch').addEventListener('input', renderSongs)
+
+  function renderSongs() {
+    if (tab !== 'songs') return
+    var listEl = document.getElementById('songList')
+    var q = document.getElementById('songSearch').value.trim().toLowerCase()
+    if (!songBook.length) {
+      listEl.innerHTML = '<p class="sg-note">Song list not received yet…</p>'
+      return
+    }
+    var matches = q
+      ? songBook.filter(function (s) { return (s.n + ' ' + s.t + ' ' + s.a).toLowerCase().indexOf(q) !== -1 })
+      : songBook
+    listEl.innerHTML = ''
+    matches.slice(0, SONG_LIMIT).forEach(function (s) {
+      var row = document.createElement('div')
+      row.className = 'sg-item'
+      row.innerHTML = '<span class="sg-num">#' + s.n + '</span>' +
+        '<div class="sg-info"><strong>' + esc(s.t) + '</strong><span>' + esc(s.a) + '</span></div>'
+      row.appendChild(btn(svg('play-fill'), 'sg-btn play', function () { cmd('play-number', s.n) }))
+      row.appendChild(btn(svg('plus-lg'), 'sg-btn', function () { cmd('reserve-number', s.n); showFlash('Reserved: ' + s.t) }))
+      listEl.appendChild(row)
+    })
+    if (matches.length > SONG_LIMIT) {
+      var note = document.createElement('p')
+      note.className = 'sg-note'
+      note.textContent = 'Showing ' + SONG_LIMIT + ' of ' + matches.length + ' — refine your search.'
+      listEl.appendChild(note)
+    }
+    if (!matches.length) listEl.innerHTML = '<p class="sg-note">No songs match.</p>'
   }
 
   function render(s) {

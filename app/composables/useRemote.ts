@@ -6,15 +6,36 @@ export interface PairingInfo {
   hasNetwork?: boolean
 }
 
+/** Compact songbook entry sent to remotes: number / title / artist. */
+export interface RemoteSongEntry {
+  n: number
+  t: string
+  a: string
+}
+
+// Module-scoped: useRemote() is called from several components but only one
+// BroadcastChannel exists (web demo mode).
+let localChannel: BroadcastChannel | null = null
+
 export function useRemote() {
   const bus = useRemoteBus()
   const available = useState('okara-remote-available', () => false)
   const pairing = useState<PairingInfo | null>('okara-remote-pairing', () => null)
   const connected = useState('okara-remote-connected', () => 0)
   const inited = useState('okara-remote-inited', () => false)
+  const lastSongs = useState<RemoteSongEntry[]>('okara-remote-songs', () => [])
 
   // Strip Vue reactivity so the state is structured-clone friendly (postMessage/IPC).
   const plain = (s: PlaybackState) => JSON.parse(JSON.stringify(s)) as PlaybackState
+
+  /** Push the songbook to every connected remote (and to late joiners). */
+  function publishSongs(songs: RemoteSongEntry[]) {
+    lastSongs.value = songs
+    const payload = JSON.parse(JSON.stringify(songs))
+    const bridge = (window as any).okara
+    if (bridge?.isElectron) bridge.sendSongs?.(payload)
+    else localChannel?.postMessage({ type: 'songs', songs: payload })
+  }
 
   /** Re-read the pairing URL — the LAN IP changes when Wi-Fi/hotspot toggles. */
   async function refreshPairing() {
@@ -48,6 +69,7 @@ export function useRemote() {
 
     if ('BroadcastChannel' in window) {
       const channel = new BroadcastChannel('okara-remote')
+      localChannel = channel
       pairing.value = {
         url: `${location.origin}${location.pathname}#/remote`,
         token: 'local',
@@ -57,11 +79,14 @@ export function useRemote() {
       channel.onmessage = (e) => {
         const d = e.data
         if (d?.type === 'cmd') bus.dispatch(d.action, d.value)
-        if (d?.type === 'hello') channel.postMessage({ type: 'state', state: plain(bus.state.value) })
+        if (d?.type === 'hello') {
+          channel.postMessage({ type: 'state', state: plain(bus.state.value) })
+          channel.postMessage({ type: 'songs', songs: JSON.parse(JSON.stringify(lastSongs.value)) })
+        }
       }
       watch(bus.state, (s) => channel.postMessage({ type: 'state', state: plain(s) }), { deep: true })
     }
   }
 
-  return { available, pairing, connected, init, refreshPairing, bus }
+  return { available, pairing, connected, init, refreshPairing, publishSongs, bus }
 }

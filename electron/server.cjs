@@ -15,11 +15,12 @@ function lanIp() {
   return '127.0.0.1'
 }
 
-function startRemoteServer({ onCommand, onCountChange } = {}) {
+function startRemoteServer({ port = 0, onCommand, onCountChange } = {}) {
   const token = crypto.randomBytes(24).toString('hex')
   const remoteHtml = fs.readFileSync(path.join(__dirname, 'remote.html'), 'utf8')
   const clients = new Set()
   let lastState = null
+  let lastSongs = null
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost')
@@ -43,6 +44,7 @@ function startRemoteServer({ onCommand, onCountChange } = {}) {
       clients.add(ws)
       onCountChange?.(clients.size)
       if (lastState) ws.send(JSON.stringify({ type: 'state', state: lastState }))
+      if (lastSongs) ws.send(JSON.stringify({ type: 'songs', songs: lastSongs }))
       ws.on('message', (data) => {
         try {
           const msg = JSON.parse(data.toString())
@@ -56,18 +58,29 @@ function startRemoteServer({ onCommand, onCountChange } = {}) {
     })
   })
 
-  return new Promise((resolve) => {
-    server.listen(0, '0.0.0.0', () => {
-      const { port } = server.address()
+  return new Promise((resolve, reject) => {
+    server.on('error', reject) // e.g. EADDRINUSE on a fixed port
+    server.listen(port || 0, '0.0.0.0', () => {
+      const bound = server.address().port
       const ip = lanIp()
       resolve({
         token,
-        port,
+        port: bound,
         ip,
-        url: `http://${ip}:${port}/?t=${token}`,
+        url: `http://${ip}:${bound}/?t=${token}`,
+        close() {
+          clients.forEach((c) => { try { c.terminate() } catch { /* already gone */ } })
+          clients.clear()
+          server.close()
+        },
         broadcastState(state) {
           lastState = state
           const payload = JSON.stringify({ type: 'state', state })
+          clients.forEach((c) => { if (c.readyState === 1) c.send(payload) })
+        },
+        broadcastSongs(songs) {
+          lastSongs = songs
+          const payload = JSON.stringify({ type: 'songs', songs })
           clients.forEach((c) => { if (c.readyState === 1) c.send(payload) })
         },
       })

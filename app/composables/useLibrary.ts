@@ -215,8 +215,19 @@ export function useLibrary() {
     return songs.value.reduce((m, s) => Math.max(m, s.number || 0), 1000) + 1
   }
 
+  /**
+   * Optional "volume label" (e.g. "MegaVision Vol 3") prefixes titles so
+   * generic DVD track names (AVSEQ01…) stay identifiable per volume, like a
+   * songbook.
+   */
+  function applyLabel(detected: StoredSong[], label?: string) {
+    const l = label?.trim()
+    if (!l) return
+    for (const s of detected) s.title = `${l} – ${s.title}`
+  }
+
   /** Import browser File objects (drag-and-drop / file inputs on the web). */
-  async function importFiles(files: File[], source: SongSource): Promise<number> {
+  async function importFiles(files: File[], source: SongSource, label?: string): Promise<number> {
     const lib = bridge()
     if (lib) {
       // Copy the dropped files into the library folder first so they are
@@ -232,6 +243,7 @@ export function useLibrary() {
       if (allResolved && paths.length) {
         const entries = await lib.importPaths(paths)
         const detected = await detectSongs(entries, source)
+        applyLabel(detected, label)
         await store(detected)
         return detected.length
       }
@@ -239,19 +251,34 @@ export function useLibrary() {
       // keep them as blobs in IndexedDB rather than failing the import.
     }
     const detected = await detectSongs(files.map((f) => ({ name: f.name, file: f })), source)
+    applyLabel(detected, label)
     await store(detected)
     return detected.length
   }
 
   /** Import via the native file/folder picker (desktop + Android). */
-  async function importFromPicker(kind: 'files' | 'folder', source: SongSource): Promise<number> {
+  async function importFromPicker(kind: 'files' | 'folder', source: SongSource, label?: string): Promise<number> {
     const lib = bridge()
     if (!lib) return 0
     const entries = await lib.pickImport(kind)
     if (!entries.length) return 0
     const detected = await detectSongs(entries, source)
+    applyLabel(detected, label)
     await store(detected)
     return detected.length
+  }
+
+  /** Change a song's dial number (to match a DVD songbook). */
+  async function renumber(id: string, number: number): Promise<string | null> {
+    const taken = songs.value.find((s) => s.number === number && s.id !== id)
+    if (taken) return `#${number} is already "${taken.title}"`
+    const song = songs.value.find((s) => s.id === id)
+    if (!song) return 'Song not found'
+    song.number = number
+    const { audioUrl, videoUrl, coverUrl, ...stored } = song
+    await dbPut(stored)
+    songs.value = [...songs.value]
+    return null
   }
 
   function findByNumber(num: number): RuntimeSong | undefined {
@@ -284,5 +311,5 @@ export function useLibrary() {
     await load()
   }
 
-  return { songs, loaded, load, importFiles, importFromPicker, remove, clearAll, findByNumber }
+  return { songs, loaded, load, importFiles, importFromPicker, remove, clearAll, findByNumber, renumber }
 }

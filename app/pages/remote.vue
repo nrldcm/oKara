@@ -15,7 +15,19 @@ const state = ref<State>({
   reserved: 0, reservedList: [], message: '', messageSeq: 0,
 })
 const connected = ref(false)
-const tab = ref<'remote' | 'queue' | 'mic'>('remote')
+const tab = ref<'remote' | 'songs' | 'queue' | 'mic'>('remote')
+
+interface SongEntry { n: number; t: string; a: string }
+const songs = ref<SongEntry[]>([])
+const songQuery = ref('')
+const SONG_LIMIT = 100
+const songResults = computed(() => {
+  const q = songQuery.value.trim().toLowerCase()
+  const all = q
+    ? songs.value.filter((s) => `${s.n} ${s.t} ${s.a}`.toLowerCase().includes(q))
+    : songs.value
+  return { list: all.slice(0, SONG_LIMIT), total: all.length }
+})
 
 const MIC_MODES = ['Off', 'Clean', 'Karaoke', 'Pro']
 const FX_PRESETS = ['Off', 'Karaoke', 'Echo Mic', 'Concert Hall', 'Studio']
@@ -46,6 +58,7 @@ onMounted(() => {
         showFlash(state.value.message)
       }
     }
+    if (e.data?.type === 'songs') songs.value = e.data.songs ?? []
   }
   channel.postMessage({ type: 'hello' })
 })
@@ -64,7 +77,7 @@ function showFlash(msg: string) {
   if (flashTimer) clearTimeout(flashTimer)
   flashTimer = setTimeout(() => { flash.value = '' }, 2600)
 }
-function press(d: string) { if (dialed.value.length < 6) dialed.value += d }
+function press(d: string) { if (dialed.value.length < 8) dialed.value += d }
 function backspace() { dialed.value = dialed.value.slice(0, -1) }
 function clearDial() { dialed.value = '' }
 function playNumber() { if (dialed.value) { cmd('play-number', Number(dialed.value)); clearDial() } }
@@ -86,6 +99,7 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
 
     <div class="tabs">
       <button :class="{ active: tab === 'remote' }" @click="tab = 'remote'"><i class="bi bi-grid-3x3-gap-fill" /> Remote</button>
+      <button :class="{ active: tab === 'songs' }" @click="tab = 'songs'"><i class="bi bi-search" /> Songs</button>
       <button :class="{ active: tab === 'queue' }" @click="tab = 'queue'">
         <i class="bi bi-list-ul" /> Queue<span v-if="state.reserved" class="count">{{ state.reserved }}</span>
       </button>
@@ -134,6 +148,26 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
         <input type="range" min="0" max="1" step="0.01" :value="state.volume" @input="onVolume" />
         <i class="bi bi-volume-up-fill" />
       </label>
+    </template>
+
+    <template v-else-if="tab === 'songs'">
+      <input v-model="songQuery" class="song-search" type="search" placeholder="Search number, song, or artist…" />
+      <div class="song-list">
+        <p v-if="!songs.length" class="sg-note">Song list not received yet…</p>
+        <p v-else-if="!songResults.list.length" class="sg-note">No songs match.</p>
+        <div v-for="s in songResults.list" :key="s.n" class="sg-item">
+          <span class="sg-num">#{{ s.n }}</span>
+          <div class="sg-info">
+            <strong>{{ s.t }}</strong>
+            <span>{{ s.a }}</span>
+          </div>
+          <button class="sg-btn play" @click="cmd('play-number', s.n)"><i class="bi bi-play-fill" /></button>
+          <button class="sg-btn" @click="cmd('reserve-number', s.n); showFlash(`Reserved: ${s.t}`)"><i class="bi bi-plus-lg" /></button>
+        </div>
+        <p v-if="songResults.total > songResults.list.length" class="sg-note">
+          Showing {{ songResults.list.length }} of {{ songResults.total }} — refine your search.
+        </p>
+      </div>
     </template>
 
     <template v-else-if="tab === 'mic'">
@@ -288,4 +322,17 @@ h1 { font-size: 20px; margin: 0; }
 .fx-slider .top { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
 .fx-slider .top em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--text); }
 .fx-slider input { width: 100%; accent-color: var(--accent); }
+.song-search { width: 100%; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 15px; }
+.song-list { width: 100%; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.sg-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 8px 10px; }
+.sg-num { font-weight: 700; color: var(--accent); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sg-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.sg-info strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-info span { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-btn { width: 40px; height: 40px; border-radius: 10px; border: none; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text); }
+.sg-btn.play { background: var(--accent-grad); color: #fff; }
+.sg-note { color: var(--text-faint); font-size: 12px; text-align: center; padding: 8px 0; }
 </style>

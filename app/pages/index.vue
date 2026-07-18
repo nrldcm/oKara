@@ -100,6 +100,17 @@ watch(nowPlaying, (s) => {
   }
 })
 
+// Publish the songbook (number/title/artist) to remotes so phones can browse
+// and search the library directly.
+watch(library.songs, (list) => {
+  remote.publishSongs(list.map((s) => ({ n: s.number, t: s.title, a: s.artist })))
+}, { deep: false, immediate: true })
+
+async function onRenumber(id: string, n: number) {
+  const err = await library.renumber(id, n)
+  if (err) bus.flash(err)
+}
+
 // Mirror the mic/soundboard settings into the remote state so the phone's
 // Mic tab always shows what the host is using.
 watch(() => settings.value.fx, (fx) => {
@@ -182,7 +193,7 @@ async function onClear() {
     </nav>
 
     <main class="content">
-      <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" />
+      <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" />
       <ImportView v-else-if="view === 'import'" />
       <SettingsView v-else @clear="onClear" />
     </main>

@@ -5,6 +5,7 @@ import { libraryFolderAvailable } from '~/composables/useLibrary'
 const library = useLibrary()
 
 const source = ref<SongSource>('UltraStar')
+const volumeLabel = ref('')
 const dragging = ref(false)
 const busy = ref(false)
 const result = ref<string | null>(null)
@@ -56,11 +57,11 @@ async function run(fn: () => Promise<number>) {
 
 function handle(files: File[]) {
   if (!files.length) return
-  run(() => library.importFiles(files, source.value))
+  run(() => library.importFiles(files, source.value, volumeLabel.value))
 }
 
 function pickNative(kind: 'files' | 'folder') {
-  run(() => library.importFromPicker(kind, source.value))
+  run(() => library.importFromPicker(kind, source.value, volumeLabel.value))
 }
 
 function onDrop(e: DragEvent) {
@@ -97,6 +98,11 @@ function onPick(e: Event) {
           <em>{{ s.hint }}</em>
         </button>
       </div>
+    </div>
+
+    <div class="field">
+      <span>Volume label (optional) — prefixes song titles, e.g. "MegaVision Vol 3 – AVSEQ01"</span>
+      <input v-model="volumeLabel" class="label-input" placeholder="e.g. MegaVision Vol 3" maxlength="40" />
     </div>
 
     <div
@@ -142,7 +148,7 @@ function onPick(e: Event) {
 </template>
 
 <style scoped>
-.imp { padding: 4px 2px 40px; max-width: 760px; }
+.imp { padding: 4px 2px 40px; max-width: 760px; margin: 0 auto; }
 h1 { font-size: 26px; margin: 0 0 8px; }
 .lead { color: var(--text-muted); line-height: 1.55; margin-bottom: 22px; }
 .field { margin-bottom: 22px; }
@@ -152,6 +158,8 @@ h1 { font-size: 26px; margin: 0 0 8px; }
   border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
 .chip.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .chip em { font-size: 11px; color: var(--text-faint); font-style: normal; }
+.label-input { width: 100%; max-width: 360px; padding: 11px 15px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-size: 14px; }
 .drop { border: 2px dashed var(--border); border-radius: 18px; padding: 40px 20px; text-align: center; transition: .15s; }
 .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .drop__icon { font-size: 40px; }

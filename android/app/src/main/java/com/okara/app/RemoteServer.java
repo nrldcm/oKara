@@ -37,9 +37,10 @@ public class RemoteServer extends NanoWSD {
     private final Set<RemoteSocket> clients = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Timer pingTimer = new Timer("okara-remote-ping", true);
     private volatile String lastStateJson = null;
+    private volatile String lastSongsJson = null;
 
-    public RemoteServer(String remoteHtml, Listener listener) {
-        super(0); // ephemeral port, like server.listen(0) in Electron
+    public RemoteServer(int port, String remoteHtml, Listener listener) {
+        super(port); // 0 = ephemeral, like server.listen(0) in Electron
         this.remoteHtml = remoteHtml;
         this.listener = listener;
 
@@ -97,8 +98,25 @@ public class RemoteServer extends NanoWSD {
         }
     }
 
+    /** Push the songbook (JSON array of {n,t,a}) to all remotes. */
+    public void broadcastSongs(String songsJson) {
+        lastSongsJson = songsJson;
+        String payload = wrapSongs(songsJson);
+        for (RemoteSocket socket : clients) {
+            try {
+                socket.send(payload);
+            } catch (IOException e) {
+                dropClient(socket);
+            }
+        }
+    }
+
     private static String wrapState(String stateJson) {
         return "{\"type\":\"state\",\"state\":" + stateJson + "}";
+    }
+
+    private static String wrapSongs(String songsJson) {
+        return "{\"type\":\"songs\",\"songs\":" + songsJson + "}";
     }
 
     private void dropClient(RemoteSocket socket) {
@@ -174,12 +192,12 @@ public class RemoteServer extends NanoWSD {
             clients.add(this);
             listener.onCountChange(clients.size());
             String state = lastStateJson;
-            if (state != null) {
-                try {
-                    send(wrapState(state));
-                } catch (IOException e) {
-                    dropClient(this);
-                }
+            String songs = lastSongsJson;
+            try {
+                if (state != null) send(wrapState(state));
+                if (songs != null) send(wrapSongs(songs));
+            } catch (IOException e) {
+                dropClient(this);
             }
         }
 

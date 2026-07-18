@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('okara', {
   onCommand: (cb) => ipcRenderer.on('okara:command', (_e, cmd) => cb(cmd)),
   onRemoteCount: (cb) => ipcRenderer.on('okara:remote-count', (_e, n) => cb(n)),
   sendState: (state) => ipcRenderer.send('okara:state', state),
+  sendSongs: (songs) => ipcRenderer.send('okara:songs', songs),
 
   // Media in the on-disk library plays straight from file:// URLs.
   toMediaUrl: (p) => pathToFileURL(p).href,
@@ -14,6 +15,11 @@ contextBridge.exposeInMainWorld('okara', {
   // into the library folder without shuttling bytes through the renderer.
   getPathForFile: (file) => {
     try { return webUtils.getPathForFile(file) } catch { return '' }
+  },
+
+  remoteConfig: {
+    get: () => ipcRenderer.invoke('okara:get-remote-config'),
+    setPort: (port) => ipcRenderer.invoke('okara:set-remote-port', port),
   },
 
   library: {

@@ -2,25 +2,34 @@
 import type { RuntimeSong } from '~/composables/useLibrary'
 
 const props = defineProps<{ songs: RuntimeSong[] }>()
-const emit = defineEmits<{ play: [RuntimeSong]; remove: [string] }>()
+const emit = defineEmits<{ play: [RuntimeSong]; remove: [string]; renumber: [string, number] }>()
 
 const query = ref('')
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return props.songs
   return props.songs.filter((s) =>
-    `${s.title} ${s.artist} ${s.source}`.toLowerCase().includes(q))
+    `${s.number} ${s.title} ${s.artist} ${s.source}`.toLowerCase().includes(q))
 })
 
 const badge = (s: RuntimeSong) =>
   s.hasScoring ? 'Scoring' : s.kind === 'video' ? 'Video' : 'Audio'
+
+// Song numbers are editable so the library can match a DVD songbook.
+function editNumber(s: RuntimeSong) {
+  const raw = window.prompt(`New number for "${s.title}" (1-99999999):`, String(s.number))
+  if (raw == null) return
+  const n = Number(raw.trim())
+  if (!Number.isInteger(n) || n < 1 || n > 99999999) return
+  emit('renumber', s.id, n)
+}
 </script>
 
 <template>
   <section class="lib">
     <div class="lib__head">
       <h1>Library</h1>
-      <input v-model="query" class="search" placeholder="Search song or artist…" />
+      <input v-model="query" class="search" placeholder="Search number, song, or artist…" />
     </div>
 
     <p v-if="!filtered.length" class="empty">
@@ -32,7 +41,7 @@ const badge = (s: RuntimeSong) =>
         <div class="thumb" :style="s.coverUrl ? { backgroundImage: `url(${s.coverUrl})` } : {}">
           <i v-if="!s.coverUrl" class="thumb__icon bi" :class="s.kind === 'video' ? 'bi-tv-fill' : 'bi-mic-fill'" />
           <span class="thumb__badge" :class="{ score: s.hasScoring }">{{ badge(s) }}</span>
-          <span class="thumb__num">#{{ s.number }}</span>
+          <button class="thumb__num" title="Edit song number" @click.stop="editNumber(s)">#{{ s.number }} <i class="bi bi-pencil-fill" /></button>
           <button class="del" title="Remove" @click.stop="emit('remove', s.id)"><i class="bi bi-x-lg" /></button>
         </div>
         <div class="meta">
@@ -66,7 +75,8 @@ const badge = (s: RuntimeSong) =>
 .thumb__badge.score { background: var(--accent); }
 .thumb__num { position: absolute; bottom: 8px; left: 8px; font-size: 12px; font-weight: 700;
   font-variant-numeric: tabular-nums; padding: 2px 8px; border-radius: 8px; background: rgba(0, 0, 0, .55);
-  color: #fff; }
+  color: #fff; border: none; cursor: pointer; }
+.thumb__num .bi { font-size: 9px; opacity: .7; }
 .del { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; border: none;
   background: rgba(0, 0, 0, .55); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s; }
 .card:hover .del { opacity: 1; }

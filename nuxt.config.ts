@@ -15,7 +15,7 @@ export default defineNuxtConfig({
       script: [
         {
           innerHTML:
-            "(function(){try{var t=localStorage.getItem('okara-theme');if(!t){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='dark';}})();",
+            "(function(){try{var m=localStorage.getItem('okara-theme-mode');var t;if(m==='night'){t='dark';}else if(m==='system'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}else{t='light';}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='light';}})();",
           tagPosition: 'head',
         },
       ],

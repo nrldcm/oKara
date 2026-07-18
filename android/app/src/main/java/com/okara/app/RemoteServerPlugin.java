@@ -54,9 +54,37 @@ public class RemoteServerPlugin extends Plugin {
         }
     }
 
+    private int configuredPort() {
+        return getContext().getSharedPreferences("okara", Context.MODE_PRIVATE).getInt("remotePort", 0);
+    }
+
+    private void saveConfiguredPort(int port) {
+        getContext().getSharedPreferences("okara", Context.MODE_PRIVATE)
+                .edit().putInt("remotePort", port).apply();
+    }
+
     private synchronized RemoteServer ensureServer() throws IOException {
         if (server == null) {
-            RemoteServer created = new RemoteServer(readRemoteHtml(), new RemoteServer.Listener() {
+            server = createServer(configuredPort());
+        }
+        return server;
+    }
+
+    private RemoteServer createServer(int port) throws IOException {
+        RemoteServer created = buildServer(port);
+        try {
+            created.startServer();
+        } catch (IOException e) {
+            if (port == 0) throw e;
+            // The fixed port is unavailable — fall back to an automatic one.
+            created = buildServer(0);
+            created.startServer();
+        }
+        return created;
+    }
+
+    private RemoteServer buildServer(int port) throws IOException {
+        return new RemoteServer(port, readRemoteHtml(), new RemoteServer.Listener() {
                 @Override
                 public void onCommand(JSONObject cmd) {
                     JSObject data = new JSObject();
@@ -72,10 +100,6 @@ public class RemoteServerPlugin extends Plugin {
                     notifyListeners("remoteCount", data);
                 }
             });
-            created.startServer();
-            server = created;
-        }
-        return server;
     }
 
     private String readRemoteHtml() throws IOException {
@@ -109,6 +133,52 @@ public class RemoteServerPlugin extends Plugin {
         RemoteServer s = server;
         if (s != null && state != null) {
             s.broadcastState(state.toString());
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void getRemoteConfig(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("port", configuredPort());
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void setRemotePort(PluginCall call) {
+        Integer p = call.getInt("port", 0);
+        int wanted = p != null && p >= 1024 && p <= 65535 ? p : 0;
+        saveConfiguredPort(wanted);
+        synchronized (this) {
+            if (server != null) {
+                server.stopServer();
+                server = null;
+            }
+            try {
+                server = createServer(wanted);
+                JSObject ret = new JSObject();
+                ret.put("url", server.getUrl());
+                ret.put("token", server.getToken());
+                ret.put("port", server.getListeningPort());
+                ret.put("hasNetwork", server.hasNetwork());
+                boolean fallback = wanted != 0 && server.getListeningPort() != wanted;
+                ret.put("error", fallback ? "Port " + wanted + " is in use — using an automatic port instead." : null);
+                call.resolve(ret);
+            } catch (IOException e) {
+                call.reject("Failed to restart remote server", e);
+            }
+        }
+    }
+
+    @PluginMethod
+    public void sendSongs(PluginCall call) {
+        try {
+            RemoteServer s = ensureServer(); // start now so late-started remotes still get the songbook
+            if (call.getArray("songs") != null) {
+                s.broadcastSongs(call.getArray("songs").toString());
+            }
+        } catch (IOException ignored) {
+            // no server, nothing to broadcast to
         }
         call.resolve();
     }

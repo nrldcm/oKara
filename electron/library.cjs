@@ -116,4 +116,4 @@ function registerLibraryIpc(getWindow) {
   })
 }
 
-module.exports = { registerLibraryIpc, libraryDir, pathToFileURL }
+module.exports = { registerLibraryIpc, libraryDir, pathToFileURL, readConfig, writeConfig }

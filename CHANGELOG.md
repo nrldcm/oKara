@@ -13,6 +13,31 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.7.0] - 2026-07-18
+
+### Added
+
+- **Songbook on the phone remote** — a new **Songs** tab that receives the full
+  library from the host and lets singers **search by number, title, or artist**
+  and tap **Play** or **Reserve** — no more typing dial numbers or needing a
+  paper songbook. Works on the LAN remote (desktop + Android hosts) and the web
+  remote; the list stays in sync as the library changes.
+- **Library search by number** on the host, plus **editable song numbers**
+  (tap the # on a song) so the library can match a DVD/karaoke songbook. The
+  dial pad now accepts up to **8 digits**.
+- **Volume label on import** — tag an import (e.g. "MegaVision Vol 3") to
+  prefix its song titles, keeping generic DVD track names (AVSEQ01…)
+  identifiable per volume.
+- **Theme setting: Day / Night / System** in Settings, defaulting to **Day**.
+  (Was dark-only by default.)
+- **Advanced settings** modal with a **configurable remote-server port**
+  (Auto or a fixed port like 3000); changing it restarts the remote server in
+  place and refreshes the pairing QR.
+
+### Changed
+
+- Settings and Import pages are now centered on wide screens.
+
 ## [0.6.1] - 2026-07-17
 
 ### Changed
@@ -146,7 +171,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/nrldcm/okara/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/nrldcm/okara/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/nrldcm/okara/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/nrldcm/okara/compare/v0.4.0...v0.5.0

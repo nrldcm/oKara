@@ -3,6 +3,9 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 interface RemoteServerPlugin {
   getPairing(): Promise<{ url: string; token: string; hasNetwork: boolean }>
   sendState(options: { state: unknown }): Promise<void>
+  sendSongs(options: { songs: unknown[] }): Promise<void>
+  getRemoteConfig(): Promise<{ port: number }>
+  setRemotePort(options: { port: number }): Promise<{ url: string; token: string; port: number; error: string | null }>
   addListener(event: 'command', cb: (cmd: { action: string; value?: unknown }) => void): Promise<unknown>
   addListener(event: 'remoteCount', cb: (data: { count: number }) => void): Promise<unknown>
   addListener(event: 'networkChanged', cb: () => void): Promise<unknown>
@@ -63,6 +66,14 @@ export default defineNuxtPlugin(() => {
     },
     sendState: (state: unknown) => {
       remote.sendState({ state })
+    },
+    sendSongs: (songs: unknown[]) => {
+      remote.sendSongs({ songs })
+    },
+
+    remoteConfig: {
+      get: () => remote.getRemoteConfig(),
+      setPort: (port: number) => remote.setRemotePort({ port }),
     },
 
     micRoute: {

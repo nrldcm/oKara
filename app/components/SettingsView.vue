@@ -1,9 +1,62 @@
 <script setup lang="ts">
 import { listMicrophones } from '~/composables/usePitch'
 import { libraryFolderAvailable } from '~/composables/useLibrary'
+import type { ThemeMode } from '~/composables/useTheme'
 
 const { settings } = useSettings()
+const { mode: themeMode, setMode: setThemeMode } = useTheme()
+const { refreshPairing } = useRemote()
 const emit = defineEmits<{ clear: [] }>()
+
+const THEME_MODES: { value: ThemeMode; label: string; icon: string }[] = [
+  { value: 'day', label: 'Day', icon: 'bi-sun-fill' },
+  { value: 'night', label: 'Night', icon: 'bi-moon-stars-fill' },
+  { value: 'system', label: 'System', icon: 'bi-circle-half' },
+]
+
+// Advanced settings modal (remote server port)
+const showAdvanced = ref(false)
+const hasRemoteConfig = ref(false)
+const portMode = ref<'auto' | 'custom'>('auto')
+const portValue = ref(3000)
+const portBusy = ref(false)
+const portMsg = ref('')
+
+async function openAdvanced() {
+  portMsg.value = ''
+  const rc = (window as any).okara?.remoteConfig
+  if (rc) {
+    try {
+      const cfg = await rc.get()
+      portMode.value = cfg.port ? 'custom' : 'auto'
+      if (cfg.port) portValue.value = cfg.port
+    } catch { /* defaults */ }
+  }
+  showAdvanced.value = true
+}
+
+async function savePort() {
+  const rc = (window as any).okara?.remoteConfig
+  if (!rc) return
+  const port = portMode.value === 'custom' ? portValue.value : 0
+  if (portMode.value === 'custom' && (!Number.isInteger(port) || port < 1024 || port > 65535)) {
+    portMsg.value = 'Enter a port between 1024 and 65535.'
+    return
+  }
+  portBusy.value = true
+  portMsg.value = ''
+  try {
+    const res = await rc.setPort(port)
+    await refreshPairing()
+    portMsg.value = res?.error
+      ? res.error
+      : `Remote server restarted on port ${res.port}. Remotes must re-scan the QR.`
+  } catch {
+    portMsg.value = 'Failed to restart the remote server.'
+  } finally {
+    portBusy.value = false
+  }
+}
 
 const mics = ref<MediaDeviceInfo[]>([])
 const confirmClear = ref(false)
@@ -48,6 +101,7 @@ async function toggleBt(e: Event) {
 onMounted(async () => {
   refreshMics()
   refreshBt()
+  hasRemoteConfig.value = !!(window as any).okara?.remoteConfig
   hasLibFolder.value = libraryFolderAvailable()
   if (hasLibFolder.value) {
     try {
@@ -74,6 +128,18 @@ function doClear() {
 <template>
   <section class="set">
     <h1>Settings</h1>
+
+    <div class="block">
+      <h3>Theme</h3>
+      <div class="segmented">
+        <button
+          v-for="m in THEME_MODES"
+          :key="m.value"
+          :class="{ active: themeMode === m.value }"
+          @click="setThemeMode(m.value)"
+        ><i class="bi" :class="m.icon" /> {{ m.label }}</button>
+      </div>
+    </div>
 
     <div class="block">
       <h3>Microphone</h3>
@@ -165,12 +231,54 @@ function doClear() {
       </div>
     </div>
 
+    <div v-if="hasRemoteConfig" class="advanced-row">
+      <button class="advanced-btn" @click="openAdvanced"><i class="bi bi-gear-wide-connected" /> Advanced settings</button>
+    </div>
+
     <p class="about">okara · open karaoke — UltraStar player + pitch scoring + phone remote</p>
+
+    <Teleport to="body">
+      <div v-if="showAdvanced" class="modal-backdrop" @click.self="showAdvanced = false">
+        <div class="modal">
+          <div class="modal__head">
+            <h3><i class="bi bi-gear-wide-connected" /> Advanced settings</h3>
+            <button class="modal__close" @click="showAdvanced = false"><i class="bi bi-x-lg" /></button>
+          </div>
+
+          <h4>Remote server port</h4>
+          <p class="muted small">
+            The port the phone remote connects to on this device. Auto picks a free
+            port on every launch; set a fixed port if your network needs it.
+            Changing it restarts the remote server — connected phones must re-scan
+            the QR.
+          </p>
+          <label class="port-opt">
+            <input type="radio" value="auto" v-model="portMode" /> Auto (random free port)
+          </label>
+          <label class="port-opt">
+            <input type="radio" value="custom" v-model="portMode" /> Fixed port:
+            <input
+              type="number" min="1024" max="65535" v-model.number="portValue"
+              class="port-input" :disabled="portMode !== 'custom'" placeholder="3000"
+            />
+          </label>
+
+          <p v-if="portMsg" class="port-msg">{{ portMsg }}</p>
+
+          <div class="modal__actions">
+            <button class="mini" @click="showAdvanced = false">Close</button>
+            <button class="save" :disabled="portBusy" @click="savePort">
+              {{ portBusy ? 'Restarting…' : 'Save & restart server' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
 <style scoped>
-.set { padding: 4px 2px 40px; max-width: 720px; }
+.set { padding: 4px 2px 40px; max-width: 720px; margin: 0 auto; }
 h1 { font-size: 26px; margin: 0 0 24px; }
 .block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px;
   margin-bottom: 16px; }
@@ -192,6 +300,27 @@ h1 { font-size: 26px; margin: 0 0 24px; }
 .dir { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
   padding: 10px 14px; font-size: 13px; word-break: break-all; }
 .bt-err { color: var(--danger); font-size: 13px; margin: 10px 0 0; }
+.advanced-row { text-align: center; margin: 24px 0 8px; }
+.advanced-btn { padding: 10px 18px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); cursor: pointer; font-size: 14px; }
+.advanced-btn:hover { color: var(--text); }
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .55);
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px;
+  width: 100%; max-width: 480px; box-shadow: var(--shadow, 0 20px 60px rgba(0,0,0,.4)); }
+.modal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.modal__head h3 { margin: 0; font-size: 17px; }
+.modal__close { border: none; background: none; color: var(--text-muted); font-size: 17px; cursor: pointer; }
+.modal h4 { margin: 0 0 8px; font-size: 14px; }
+.port-opt { display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer; font-size: 14px; }
+.port-input { width: 110px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); }
+.port-input:disabled { opacity: .4; }
+.port-msg { font-size: 13px; color: var(--accent); margin: 10px 0 0; }
+.modal__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.save { padding: 10px 18px; border-radius: 999px; border: none; background: var(--accent); color: var(--on-accent);
+  font-weight: 600; cursor: pointer; }
+.save:disabled { opacity: .5; }
 .del { padding: 10px 18px; border-radius: 999px; border: none; background: var(--danger); color: #fff; cursor: pointer; }
 .confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .about { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 30px; }
