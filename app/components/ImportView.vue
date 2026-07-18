@@ -16,36 +16,21 @@ const hasFolder = ref(false)
 const folderDir = ref('')
 const canConvert = ref(false)
 
-// DVD/VCD transcode progress
-const converting = ref(false)
-const convText = ref('')
-const convPct = ref(0)
-let offProgress: (() => void) | null = null
+// Shared, tab-switch-proof convert job (state lives outside this component).
+const job = useImportJob()
+const converting = job.active
 
 onMounted(async () => {
   hasFolder.value = libraryFolderAvailable()
   canConvert.value = canConvertDiscs()
+  job.ensureListener()
   if (hasFolder.value) {
     try { folderDir.value = (await (window as any).okara.library.info()).dir } catch { /* ignore */ }
   }
-  if (canConvert.value) {
-    offProgress = (window as any).okara.library.onProgress((p: any) => {
-      const n = (p.index ?? 0) + 1
-      convText.value = p.error
-        ? `Skipped ${p.name}: ${p.error}`
-        : `Converting ${p.name} (${n}/${p.total})…`
-      convPct.value = Math.round(((p.index + (p.fraction ?? 0)) / Math.max(1, p.total)) * 100)
-    })
-  }
 })
-onBeforeUnmount(() => { offProgress?.() })
 
-async function importDisc(kind: 'iso' | 'dvd-video') {
-  converting.value = true
-  convText.value = 'Choose the disc image / files…'
-  convPct.value = 0
-  await run(() => library.importDisc(kind, source.value))
-  converting.value = false
+function importDisc(kind: 'iso' | 'dvd-video') {
+  job.runDisc(kind, source.value)
 }
 
 const sources: { value: SongSource; label: string; hint: string }[] = [
@@ -171,9 +156,11 @@ function onPick(e: Event) {
         <button class="ghost" :disabled="converting" @click="importDisc('dvd-video')"><i class="bi bi-film" /> Import VOB/DAT files</button>
       </div>
       <div v-if="converting" class="conv">
-        <div class="conv__bar"><div class="conv__fill" :style="{ width: convPct + '%' }" /></div>
-        <p class="conv__text">{{ convText }} <span v-if="convPct">— {{ convPct }}%</span></p>
+        <div class="conv__bar"><div class="conv__fill" :style="{ width: job.pct.value + '%' }" /></div>
+        <p class="conv__text">{{ job.text.value }} <span v-if="job.pct.value">— {{ job.pct.value }}%</span></p>
+        <p class="conv__keep">You can switch tabs or play a song — the conversion keeps running.</p>
       </div>
+      <p v-else-if="job.message.value" class="status" :class="job.failed.value ? 'err' : 'ok'">{{ job.message.value }}</p>
     </div>
 
     <input ref="fileInput" type="file" multiple hidden
@@ -228,6 +215,7 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .conv__bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
 .conv__fill { height: 100%; background: var(--accent-grad); transition: width .2s; }
 .conv__text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+.conv__keep { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
 .note { margin-top: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
 .note h3 { margin: 0 0 8px; font-size: 15px; }
 .note ul { margin: 0; padding-left: 18px; line-height: 1.7; color: var(--text-muted); font-size: 14px; }

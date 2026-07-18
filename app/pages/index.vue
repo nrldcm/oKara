@@ -6,6 +6,7 @@ const library = useLibrary()
 const { settings, load: loadSettings } = useSettings()
 const remote = useRemote()
 const pitch = usePitch()
+const importJob = useImportJob()
 const bus = useRemoteBus()
 const { theme, init: initTheme, toggle: toggleTheme } = useTheme()
 
@@ -21,6 +22,7 @@ const reserved = ref<RuntimeSong[]>([])
 onMounted(async () => {
   initTheme()
   loadSettings()
+  importJob.ensureListener() // keep convert progress alive across tab switches
   await library.load()
   await remote.init()
 })
@@ -187,6 +189,9 @@ async function onClear() {
         <button :class="{ active: view === 'settings' }" @click="view = 'settings'">Settings</button>
       </div>
       <div class="actions">
+        <button v-if="importJob.active.value" class="pill converting" title="Converting a disc — click to view" @click="view = 'import'">
+          <i class="bi bi-arrow-repeat spin" /><span class="pill__label"> Converting {{ importJob.pct.value }}%</span>
+        </button>
         <button v-if="remote.available.value" class="pill" @click="showRemoteModal = true">
           <i class="bi bi-phone-fill" /><span class="pill__label"> Remote</span>
         </button>
@@ -233,6 +238,9 @@ async function onClear() {
 .pill { border: 1px solid var(--border); background: var(--surface); padding: 8px 14px; border-radius: 999px;
   cursor: pointer; font-size: 14px; }
 .pill.icon { padding: 8px 12px; }
+.pill.converting { border-color: var(--accent); color: var(--accent); }
+.spin { display: inline-block; animation: okspin 1s linear infinite; }
+@keyframes okspin { to { transform: rotate(360deg); } }
 .content { flex: 1; overflow-y: auto; padding: 20px 22px; max-width: 1100px; width: 100%; margin: 0 auto; }
 .stage-overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg); }
 .remote-modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .55);

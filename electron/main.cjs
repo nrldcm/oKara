@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu } = require('electron')
 const path = require('path')
 const { startRemoteServer } = require('./server.cjs')
 const { registerLibraryIpc, readConfig, writeConfig } = require('./library.cjs')
@@ -46,6 +46,16 @@ async function createWindow() {
 
   remote = await startRemote(readConfig().remotePort)
 
+  // Block all page reloads — a refresh would restart the app and abort an
+  // in-progress disc conversion / import. Covers F5, Ctrl/Cmd+R,
+  // Ctrl+Shift+R, and Ctrl+F5.
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const key = (input.key || '').toLowerCase()
+    const mod = input.control || input.meta
+    if (key === 'f5' || (mod && key === 'r')) event.preventDefault()
+  })
+
   await win.loadFile(path.join(__dirname, '..', '.output', 'public', 'index.html'))
 }
 
@@ -73,6 +83,10 @@ ipcMain.handle('okara:set-remote-port', async (_e, port) => {
     error: usedFallback ? `Port ${wanted} is in use — using an automatic port instead.` : null,
   }
 })
+
+// Remove the default menu so its Reload/Force-Reload accelerators (Ctrl+R,
+// Ctrl+Shift+R) are gone too. Edit shortcuts (copy/paste) still work in inputs.
+Menu.setApplicationMenu(null)
 
 app.whenReady().then(createWindow)
 

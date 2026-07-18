@@ -13,6 +13,18 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.1] - 2026-07-18
+
+### Fixed
+
+- **Disc conversion no longer lost on tab switch** — the DVD/VCD convert
+  progress now lives in shared state and keeps running (and stays visible) when
+  you change tabs or play a song. A "Converting X%" indicator shows in the top
+  bar from anywhere while a conversion is in progress.
+- **Page refresh disabled in the desktop app** — F5, Ctrl/Cmd+R, Ctrl+Shift+R,
+  Ctrl+F5, and the menu Reload are all blocked so a refresh can't restart the
+  app and abort an in-progress conversion.
+
 ## [0.9.0] - 2026-07-18
 
 ### Added
@@ -236,7 +248,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/nrldcm/okara/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/nrldcm/okara/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/nrldcm/okara/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/nrldcm/okara/compare/v0.8.0...v0.8.1
