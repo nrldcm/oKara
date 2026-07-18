@@ -16,6 +16,7 @@ export function useImportJob() {
   const failed = useState('okara-import-failed', () => false)
   const listening = useState('okara-import-listening', () => false)
   const lastError = useState<string>('okara-import-last-error', () => '')
+  const cancelled = useState('okara-import-cancelled', () => false)
 
   function applyProgress(p: any) {
     if (p.error) lastError.value = String(p.error)
@@ -52,13 +53,18 @@ export function useImportJob() {
     ensureListener()
     active.value = true
     failed.value = false
+    cancelled.value = false
     message.value = null
     text.value = 'Choose the disc image / files…'
     pct.value = 0
     lastError.value = ''
     try {
       const count = await library.importDisc(kind, source)
-      if (count > 0) {
+      if (cancelled.value) {
+        message.value = count > 0
+          ? `Import cancelled — ${count} track${count > 1 ? 's' : ''} already converted were kept.`
+          : 'Import cancelled.'
+      } else if (count > 0) {
         message.value = `Converted and imported ${count} track${count > 1 ? 's' : ''} into your library.`
       } else if (isSpace(lastError.value)) {
         message.value = 'Not enough disk space on your library drive. Free up space (or move the library to a bigger drive in Settings) and try again.'
@@ -79,5 +85,12 @@ export function useImportJob() {
     }
   }
 
-  return { active, text, pct, tracks, message, failed, ensureListener, runDisc }
+  /** Cancel the running import (kills ffmpeg in the main process). */
+  async function cancel() {
+    cancelled.value = true
+    text.value = 'Cancelling…'
+    try { await (window as any).okara?.library?.cancelImport?.() } catch { /* */ }
+  }
+
+  return { active, text, pct, tracks, message, failed, ensureListener, runDisc, cancel }
 }

@@ -59,7 +59,11 @@ function transcode(input, output, onProgress, opts = {}) {
         // instant encoding ends.
         output,
       ]
+      if (opts.signal?.aborted) { reject(new Error('cancelled')); return }
       const ff = spawn(ffmpegPath(), args)
+      // Cancel support: kill ffmpeg when the caller aborts the import.
+      const onAbort = () => { try { ff.kill('SIGKILL') } catch { /* already gone */ } }
+      opts.signal?.addEventListener('abort', onAbort, { once: true })
       let stderr = ''
       ff.stderr.on('data', (d) => {
         stderr += d.toString()

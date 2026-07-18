@@ -415,9 +415,14 @@ export function useLibrary() {
   }
 
   async function clearAll() {
-    const allPaths = songs.value.flatMap((s) => s.paths ?? [])
-    if (allPaths.length) {
-      try { await bridge()?.deleteFiles(allPaths) } catch (e) { console.error(e) }
+    // Delete every file in the library folder (not just tracked paths, so no
+    // orphan media survives), then empty the song database.
+    const lib = bridge() as any
+    if (lib?.clearFolder) {
+      try { await lib.clearFolder() } catch (e) { console.error(e) }
+    } else {
+      const allPaths = songs.value.flatMap((s) => s.paths ?? [])
+      if (allPaths.length) { try { await lib?.deleteFiles(allPaths) } catch (e) { console.error(e) } }
     }
     songs.value.forEach(revoke)
     await dbClear()

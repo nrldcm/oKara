@@ -130,7 +130,7 @@ function importConcurrency(jobCount) {
   return Math.max(1, Math.min(4, importCores(), jobCount))
 }
 
-async function importIsos(isoPaths, onProgress) {
+async function importIsos(isoPaths, onProgress, signal) {
   const dir = libraryDir()
   const out = []
   // First tally the work so progress can span all tracks across all discs.
@@ -185,11 +185,12 @@ async function importIsos(isoPaths, onProgress) {
     active.set(slot, { name: trackName, fraction: 0 })
     emit(trackName)
     try {
+      if (signal?.aborted) throw new Error('cancelled')
       await iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
       await transcode(tmp, job.dest, (f) => {
         active.set(slot, { name: trackName, fraction: f })
         emit(trackName)
-      }, { threads: threadsPer })
+      }, { threads: threadsPer, signal })
       out.push({ name: path.basename(job.dest), path: job.dest })
     } catch (e) {
       // Drop the truncated output so a failed track never lands in the library.
@@ -208,6 +209,7 @@ async function importIsos(isoPaths, onProgress) {
   let next = 0
   const worker = async (slot) => {
     while (next < jobs.length) {
+      if (signal?.aborted) break // stop picking up new tracks on cancel
       const job = jobs[next++]
       await runJob(job, slot)
     }
@@ -217,17 +219,19 @@ async function importIsos(isoPaths, onProgress) {
 }
 
 /** Transcode picked DVD/VCD video files to MP4 in the library folder. */
-async function transcodeVideos(paths, onProgress) {
+async function transcodeVideos(paths, onProgress, signal) {
   const dir = libraryDir()
   const out = []
   const total = paths.length
   let done = 0
   for (const src of paths) {
+    if (signal?.aborted) break
     const dest = uniqueDest(dir, `${path.parse(src).name}.mp4`)
     try {
-      await transcode(src, dest, (f) => onProgress?.({ index: done, total, name: path.basename(dest), fraction: f }))
+      await transcode(src, dest, (f) => onProgress?.({ index: done, total, name: path.basename(dest), fraction: f }), { signal })
       out.push({ name: path.basename(dest), path: dest })
     } catch (e) {
+      try { await fsp.unlink(dest) } catch { /* not created */ }
       onProgress?.({ index: done, total, name: path.basename(src), error: String(e && e.message || e) })
     } finally {
       done++
@@ -287,6 +291,17 @@ function registerLibraryIpc(getWindow) {
     return fsp.readFile(p, 'utf8')
   })
 
+  // Wipe the whole library folder (every file + subfolder), used by "Clear
+  // library" so no orphan media is left behind — not just the tracked paths.
+  ipcMain.handle('okara:lib-clear-folder', async () => {
+    const dir = libraryDir()
+    try {
+      for (const name of await fsp.readdir(dir)) {
+        try { await fsp.rm(path.join(dir, name), { recursive: true, force: true }) } catch { /* keep going */ }
+      }
+    } catch (e) { log('clear library folder failed:', e) }
+  })
+
   ipcMain.handle('okara:lib-delete', async (_e, paths) => {
     for (const p of paths ?? []) {
       if (typeof p === 'string' && insideLibrary(p)) {
@@ -314,6 +329,9 @@ function registerLibraryIpc(getWindow) {
     sendToWin(win, 'okara:import-progress', p)
   }
 
+  // Abort controller for the in-flight import, so the renderer can cancel it.
+  let importAbort = null
+
   async function runJob(win, fn) {
     currentJob = { active: true, index: 0, total: 0, name: '', fraction: 0 }
     try {
@@ -323,6 +341,7 @@ function registerLibraryIpc(getWindow) {
       throw e
     } finally {
       currentJob = null
+      importAbort = null
       // Tell the renderer to rescan the library folder so freshly-converted
       // MP4s appear even if the page was refreshed mid-conversion.
       sendToWin(win, 'okara:import-done')
@@ -330,6 +349,9 @@ function registerLibraryIpc(getWindow) {
   }
 
   ipcMain.handle('okara:import-status', () => currentJob)
+
+  // Cancel the running import: abort kills ffmpeg and stops the worker loop.
+  ipcMain.handle('okara:import-cancel', () => { importAbort?.abort() })
 
   ipcMain.handle('okara:lib-import-iso', async () => {
     const win = getWindow()
@@ -339,7 +361,8 @@ function registerLibraryIpc(getWindow) {
       filters: [{ name: 'Disc image', extensions: ['iso'] }],
     })
     if (res.canceled || !res.filePaths.length) return []
-    return runJob(win, () => importIsos(res.filePaths, (p) => progress(win, p)))
+    importAbort = new AbortController()
+    return runJob(win, () => importIsos(res.filePaths, (p) => progress(win, p), importAbort.signal))
   })
 
   ipcMain.handle('okara:lib-import-dvd-video', async () => {
@@ -350,7 +373,8 @@ function registerLibraryIpc(getWindow) {
       filters: [{ name: 'DVD/VCD video', extensions: TRANSCODE_EXT }],
     })
     if (res.canceled || !res.filePaths.length) return []
-    return runJob(win, () => transcodeVideos(res.filePaths, (p) => progress(win, p)))
+    importAbort = new AbortController()
+    return runJob(win, () => transcodeVideos(res.filePaths, (p) => progress(win, p), importAbort.signal))
   })
 }
 

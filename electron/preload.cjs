@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld('okara', {
     importIso: () => ipcRenderer.invoke('okara:lib-import-iso'),
     importDvdVideo: () => ipcRenderer.invoke('okara:lib-import-dvd-video'),
     importStatus: () => ipcRenderer.invoke('okara:import-status'),
+    cancelImport: () => ipcRenderer.invoke('okara:import-cancel'),
+    clearFolder: () => ipcRenderer.invoke('okara:lib-clear-folder'),
     onImportDone: (cb) => {
       const h = () => cb()
       ipcRenderer.on('okara:import-done', h)

@@ -13,6 +13,24 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.18] - 2026-07-18
+
+### Added
+
+- **Cancel button while importing a disc** — a running `.iso` / VOB import can
+  now be stopped. Cancelling kills the running conversions immediately; any
+  tracks already fully converted are kept.
+
+### Changed
+
+- **Clear library now deletes everything** — every song's database record **and
+  every file in the library folder** (not only tracked files), so nothing is
+  left behind. The confirmation now says so plainly.
+- **Removed the "Play now" disc section** (Scan inserted disc / Play from .iso /
+  Play from disc folder). Direct disc/ISO playback was unreliable; use **Import
+  .iso image** to convert a disc into your library, then map/search/play from
+  there.
+
 ## [0.9.17] - 2026-07-18
 
 ### Added
@@ -480,7 +498,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.17...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.18...HEAD
+[0.9.18]: https://github.com/nrldcm/okara/compare/v0.9.17...v0.9.18
 [0.9.17]: https://github.com/nrldcm/okara/compare/v0.9.16...v0.9.17
 [0.9.16]: https://github.com/nrldcm/okara/compare/v0.9.15...v0.9.16
 [0.9.15]: https://github.com/nrldcm/okara/compare/v0.9.14...v0.9.15

@@ -3,36 +3,6 @@ import type { SongSource } from '~/utils/db'
 import { libraryFolderAvailable, canConvertDiscs } from '~/composables/useLibrary'
 
 const library = useLibrary()
-const emit = defineEmits<{ playDisc: [{ title: string; src: unknown }] }>()
-
-// Direct play from a disc/ISO (live streaming transcode — no import)
-const disc = useDisc()
-const pickedTracks = ref<{ title: string; src: unknown }[]>([])
-// Show an inserted physical disc's tracks if there is one, else the last pick.
-const discTracks = computed(() => disc.disc.value?.tracks?.length ? disc.disc.value.tracks : pickedTracks.value)
-const scanMsg = ref('')
-
-async function browseDisc(kind: 'iso' | 'folder') {
-  const r = await (window as any).okara?.discPick?.(kind)
-  if (!r) return
-  pickedTracks.value = r.tracks
-  // ISO tracks live on disk at a stable path — add them to the library so they
-  // are searchable (by #/title) and appear in the remote songbook right away.
-  // They transcode on first play. (A folder pick may be a mounted disc that
-  // disappears on eject, so it stays play-only.)
-  if (kind === 'iso' && r.tracks?.length) {
-    try {
-      const added = await library.addDiscTracks(r.tracks, r.label)
-      if (added) scanMsg.value = `Added ${added} track${added > 1 ? 's' : ''} to your Library — searchable now.`
-    } catch { /* non-fatal */ }
-  }
-}
-
-async function scanDisc() {
-  scanMsg.value = 'Scanning drives…'
-  const n = await disc.rescan()
-  scanMsg.value = n ? '' : 'No DVD/VCD disc found in the drive.'
-}
 
 const source = ref<SongSource>('UltraStar')
 const volumeLabel = ref('')
@@ -49,6 +19,8 @@ const canConvert = ref(false)
 // Shared, tab-switch-proof convert job (state lives outside this component).
 const job = useImportJob()
 const converting = job.active
+
+function cancelImport() { job.cancel() }
 
 onMounted(async () => {
   hasFolder.value = libraryFolderAvailable()
@@ -197,26 +169,12 @@ function onPick(e: Event) {
             <div class="conv__subbar"><div class="conv__subfill" :style="{ width: Math.round((t.fraction || 0) * 100) + '%' }" /></div>
           </div>
         </div>
-        <p class="conv__keep">You can switch tabs or play a song — the conversion keeps running.</p>
+        <div class="conv__foot">
+          <span class="conv__keep">You can switch tabs or play a song — the conversion keeps running.</span>
+          <button class="conv__cancel" @click="cancelImport"><i class="bi bi-x-circle" /> Cancel import</button>
+        </div>
       </div>
       <p v-else-if="job.message.value" class="status" :class="job.failed.value ? 'err' : 'ok'">{{ job.message.value }}</p>
-
-      <div class="play-now">
-        <p class="play-now__lead"><i class="bi bi-play-circle" /> <strong>Play now</strong> without importing — prepares the disc/ISO track (a short convert), then plays it clean:</p>
-        <div class="dvd__btns">
-          <button @click="scanDisc"><i class="bi bi-disc-fill" /> Scan inserted disc</button>
-          <button class="ghost" @click="browseDisc('iso')"><i class="bi bi-disc" /> Play from .iso</button>
-          <button class="ghost" @click="browseDisc('folder')"><i class="bi bi-folder2-open" /> Play from disc folder</button>
-        </div>
-        <p v-if="scanMsg" class="status">{{ scanMsg }}</p>
-        <div v-if="discTracks.length" class="tracks">
-          <div v-for="(t, i) in discTracks" :key="i" class="track" @click="emit('playDisc', t)">
-            <span class="track__no">{{ i + 1 }}</span>
-            <strong class="track__title">{{ t.title }}</strong>
-            <button class="track__play"><i class="bi bi-play-fill" /> Play</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <input ref="fileInput" type="file" multiple hidden
@@ -277,7 +235,11 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .conv__track-pct { flex: none; font-variant-numeric: tabular-nums; }
 .conv__subbar { height: 5px; border-radius: 999px; background: var(--bg); overflow: hidden; }
 .conv__subfill { height: 100%; background: var(--accent-grad); transition: width .2s; }
-.conv__keep { font-size: 12px; color: var(--text-faint); margin-top: 8px; }
+.conv__foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.conv__keep { font-size: 12px; color: var(--text-faint); }
+.conv__cancel { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.conv__cancel:hover { border-color: var(--accent); color: var(--accent); }
 .play-now { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
 .play-now__lead { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; line-height: 1.5; }
 .tracks { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }

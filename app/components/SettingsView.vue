@@ -239,11 +239,11 @@ function doClear() {
 
     <div class="block danger">
       <h3>Library</h3>
-      <p>This deletes all imported songs and their files in the library folder (the demo stays).</p>
+      <p>This <strong>permanently deletes every song</strong> — the database records <strong>and</strong> all files in the library folder. It can't be undone (only the built-in demo is restored).</p>
       <button v-if="!confirmClear" class="del" @click="confirmClear = true">Clear library</button>
       <div v-else class="confirm">
-        <span>Are you sure?</span>
-        <button class="del" @click="doClear">Yes, clear</button>
+        <span>Delete all songs and their files?</span>
+        <button class="del" @click="doClear">Yes, delete everything</button>
         <button class="mini" @click="confirmClear = false">No</button>
       </div>
     </div>
