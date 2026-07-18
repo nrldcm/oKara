@@ -7,32 +7,43 @@ const { settings, load: loadSettings } = useSettings()
 const remote = useRemote()
 const pitch = usePitch()
 const importJob = useImportJob()
-const discState = useDisc()
 const bus = useRemoteBus()
 const { theme, init: initTheme, toggle: toggleTheme } = useTheme()
+const version = useRuntimeConfig().public.version
 
-type View = 'library' | 'import' | 'settings'
+type View = 'library' | 'settings'
 const view = ref<View>('library')
 const showRemoteModal = ref(false)
+const booting = ref(true) // startup splash
 
 const nowPlaying = ref<RuntimeSong | null>(null)
 const queue = ref<RuntimeSong[]>([])
 const index = ref(0)
 const reserved = ref<RuntimeSong[]>([])
 
+// Dev-only tools (e.g. the error log) — toggled with Ctrl+Shift+Alt+F12.
+const dev = useState('okara-dev', () => false)
+function onKeydown(e: KeyboardEvent) {
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.key === 'F12') { e.preventDefault(); dev.value = !dev.value }
+}
+
 onMounted(async () => {
   initTheme()
   loadSettings()
   importJob.ensureListener() // keep convert progress alive across tab switches
-  discState.ensureListener() // auto-detect inserted DVD/VCD discs
   ;(window as any).okara?.onDiscProgress?.((p: any) => { prepPct.value = Math.round((p.fraction ?? 0) * 100) })
   // When a background conversion finishes, pick up the new MP4s (covers a
   // refresh that happened mid-conversion).
   ;(window as any).okara?.library?.onImportDone?.(() => library.rescan())
+  window.addEventListener('keydown', onKeydown)
   await library.load()
   restoreQueue() // bring back a queue left over from a previous close/crash
   await remote.init()
+  // Hold the splash briefly so it reads as a proper startup screen.
+  setTimeout(() => { booting.value = false }, 900)
 })
+
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 // A disc/ISO library song has no MP4 yet — produce it (transcode to the
 // library folder, permanent) on first play, then it plays like any song.
@@ -73,57 +84,11 @@ async function play(song: RuntimeSong) {
   nowPlaying.value = resolved
 }
 
-function playInsertedDisc() {
-  const d = discState.disc.value
-  if (d?.tracks?.length) { playDisc(d.tracks[0]); discState.dismiss() }
-}
-
-// Play a disc/ISO track: the host transcodes it to a clean temp MP4 first
-// (proper keyframes, deinterlaced), then plays it — reliable, no datamoshing.
+// Disc/ISO "materialize" progress overlay (for legacy lazy disc-ref songs that
+// convert to the library folder on first play).
 const preparing = ref(false)
 const prepPct = ref(0)
 const prepError = ref('')
-
-async function playDisc(track: { title: string; src: unknown }) {
-  // ISO tracks are auto-added to the library — if this one is there, play it
-  // through the library path so it materializes (permanent) and persists.
-  const src = (track.src || {}) as { iso?: string; extent?: number; file?: string }
-  const libId = src.iso ? `disc:${src.iso}#${src.extent}` : src.file ? `disc:${src.file}` : null
-  const libSong = libId ? library.songs.value.find((s) => s.id === libId) : null
-  if (libSong) { await play(libSong); return }
-
-  const okara = (window as any).okara
-  // Older builds have no discPrepare — tell the user to update instead of
-  // doing nothing when Play is pressed.
-  if (!okara?.discPrepare) {
-    prepError.value = 'This build is out of date. Update to okara v0.9.8+ to play from a disc/ISO.'
-    return
-  }
-  preparing.value = true
-  prepPct.value = 0
-  prepError.value = ''
-  try {
-    const res = await okara.discPrepare(track.src)
-    if (res?.url) {
-      queue.value = []
-      nowPlaying.value = {
-        id: `disc-${Date.now()}`,
-        number: 0,
-        title: track.title,
-        artist: 'Disc',
-        kind: 'video',
-        source: 'Other',
-        hasScoring: false,
-        createdAt: Date.now(),
-        videoUrl: res.url,
-      } as RuntimeSong
-    } else {
-      prepError.value = res?.error || 'Could not prepare this track.'
-    }
-  } finally {
-    preparing.value = false
-  }
-}
 
 async function playNext() {
   if (reserved.value.length) {
@@ -317,18 +282,16 @@ async function onClear() {
 <template>
   <div class="app">
     <nav class="topbar">
-      <div class="brand"><i class="bi bi-mic-fill" /> <span>okara</span></div>
-      <div class="tabs">
-        <button :class="{ active: view === 'library' }" @click="view = 'library'">Library</button>
-        <button :class="{ active: view === 'import' }" @click="view = 'import'">Import</button>
-        <button :class="{ active: view === 'settings' }" @click="view = 'settings'">Settings</button>
-      </div>
+      <button class="brand" title="Library" @click="view = 'library'"><i class="bi bi-mic-fill" /> <span>okara</span></button>
       <div class="actions">
-        <button v-if="importJob.active.value" class="pill converting" title="Converting a disc — click to view" @click="view = 'import'">
-          <i class="bi bi-arrow-repeat spin" /><span class="pill__label"> Converting {{ importJob.pct.value }}%</span>
+        <button v-if="importJob.active.value" class="pill converting" title="Importing — click to view" @click="view = 'settings'">
+          <i class="bi bi-arrow-repeat spin" /><span class="pill__label"> Importing {{ importJob.pct.value }}%</span>
         </button>
         <button v-if="remote.available.value" class="pill" @click="showRemoteModal = true">
           <i class="bi bi-phone-fill" /><span class="pill__label"> Remote</span>
+        </button>
+        <button class="pill icon" :class="{ active: view === 'settings' }" title="Settings" @click="view = view === 'settings' ? 'library' : 'settings'">
+          <i class="bi bi-gear-fill" />
         </button>
         <button class="pill icon" :title="theme === 'dark' ? 'Light mode' : 'Dark mode'" @click="toggleTheme">
           <i class="bi" :class="theme === 'dark' ? 'bi-sun-fill' : 'bi-moon-stars-fill'" />
@@ -345,19 +308,21 @@ async function onClear() {
       </div>
     </Teleport>
 
-    <div v-if="discState.showBanner.value" class="disc-banner">
-      <i class="bi bi-disc-fill" />
-      <span class="disc-banner__label"><strong>{{ discState.disc.value?.kind }} inserted</strong> — {{ discState.disc.value?.tracks.length }} track{{ discState.disc.value?.tracks.length === 1 ? '' : 's' }}</span>
-      <button class="disc-banner__play" @click="playInsertedDisc"><i class="bi bi-play-fill" /> Play</button>
-      <button class="disc-banner__browse" @click="view = 'import'">Browse</button>
-      <button class="disc-banner__close" @click="discState.dismiss()"><i class="bi bi-x-lg" /></button>
-    </div>
-
     <main class="content">
-      <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" />
-      <ImportView v-else-if="view === 'import'" @play-disc="playDisc" />
-      <SettingsView v-else @clear="onClear" />
+      <div class="content__inner">
+        <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" />
+        <SettingsView v-else @clear="onClear" />
+      </div>
     </main>
+
+    <Transition name="splash">
+      <div v-if="booting" class="splash">
+        <div class="splash__logo"><i class="bi bi-mic-fill" /> <span>okara</span></div>
+        <p class="splash__tag">open karaoke</p>
+        <div class="splash__spin"><i class="bi bi-disc-fill spin" /></div>
+        <p class="splash__ver">v{{ version }}</p>
+      </div>
+    </Transition>
 
     <div v-if="preparing" class="prep-overlay">
       <div class="prep-box">
@@ -381,23 +346,36 @@ async function onClear() {
 
 <style scoped>
 .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
-.topbar { display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
-.brand { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.topbar { display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.brand { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  border: none; background: none; cursor: pointer; padding: 0; }
+.brand .bi-mic-fill { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .brand span { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; }
-.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
-.tabs button { border: none; background: none; opacity: .55; padding: 8px 15px; border-radius: 999px;
-  cursor: pointer; font-size: 15px; white-space: nowrap; }
-.tabs button.active { opacity: 1; background: var(--surface-2); font-weight: 600; }
 .actions { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
 .pill { border: 1px solid var(--border); background: var(--surface); padding: 8px 14px; border-radius: 999px;
   cursor: pointer; font-size: 14px; }
 .pill.icon { padding: 8px 12px; }
-.pill.converting { border-color: var(--accent); color: var(--accent); }
+.pill.icon.active { background: var(--accent-grad); color: var(--on-accent); border-color: transparent; }
+.pill.converting { background: var(--accent-grad); color: var(--on-accent); border-color: transparent; }
 .spin { display: inline-block; animation: okspin 1s linear infinite; }
 @keyframes okspin { to { transform: rotate(360deg); } }
-.content { flex: 1; overflow-y: auto; padding: 20px 22px; max-width: 1100px; width: 100%; margin: 0 auto; }
+/* Full-width scroll container → scrollbar sits at the window's right edge;
+   inner wrapper centers the content. */
+.content { flex: 1; overflow-y: auto; }
+.content__inner { max-width: 1100px; width: 100%; margin: 0 auto; padding: 20px 22px; }
+
+/* Startup splash */
+.splash { position: fixed; inset: 0; z-index: 200; background: var(--bg); display: flex;
+  flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.splash__logo { font-size: 44px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+.splash__logo .bi-mic-fill, .splash__logo span { background: var(--accent-grad); -webkit-background-clip: text;
+  background-clip: text; -webkit-text-fill-color: transparent; }
+.splash__tag { color: var(--text-muted); font-size: 14px; letter-spacing: .04em; }
+.splash__spin { margin-top: 20px; font-size: 28px; color: var(--accent); }
+.splash__ver { position: absolute; bottom: 26px; color: var(--text-faint); font-size: 12px; }
+.splash-enter-active, .splash-leave-active { transition: opacity .5s ease; }
+.splash-enter-from, .splash-leave-to { opacity: 0; }
 .disc-banner { display: flex; align-items: center; gap: 12px; padding: 10px 18px;
   background: var(--accent-grad); color: #fff; }
 .disc-banner .bi-disc-fill { font-size: 20px; }
@@ -429,11 +407,9 @@ async function onClear() {
   color: var(--text-muted); font-size: 18px; cursor: pointer; z-index: 1; }
 
 @media (max-width: 560px) {
-  .topbar { gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
+  .topbar { gap: 10px; padding: 10px 14px; }
   .brand { font-size: 18px; }
-  .tabs { order: 3; width: 100%; }
-  .tabs button { flex: 1; }
   .pill__label { display: none; }
-  .content { padding: 16px 14px; }
+  .content__inner { padding: 16px 14px; }
 }
 </style>

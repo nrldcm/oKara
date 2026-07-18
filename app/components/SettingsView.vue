@@ -9,6 +9,8 @@ const { refreshPairing } = useRemote()
 const emit = defineEmits<{ clear: [] }>()
 
 const version = useRuntimeConfig().public.version
+// Dev tools (error log) are hidden until toggled with Ctrl+Shift+Alt+F12.
+const dev = useState('okara-dev', () => false)
 
 const THEME_MODES: { value: ThemeMode; label: string; icon: string }[] = [
   { value: 'day', label: 'Day', icon: 'bi-sun-fill' },
@@ -146,152 +148,164 @@ function doClear() {
   <section class="set">
     <h1>Settings</h1>
 
-    <div class="block">
-      <h3>Theme</h3>
-      <div class="segmented">
-        <button
-          v-for="m in THEME_MODES"
-          :key="m.value"
-          :class="{ active: themeMode === m.value }"
-          @click="setThemeMode(m.value)"
-        ><i class="bi" :class="m.icon" /> {{ m.label }}</button>
+    <details class="panel">
+      <summary><i class="bi bi-plus-circle-fill" /> Import songs</summary>
+      <div class="panel__body"><ImportView /></div>
+    </details>
+
+    <details class="panel">
+      <summary><i class="bi bi-palette-fill" /> Theme</summary>
+      <div class="panel__body">
+        <div class="segmented">
+          <button
+            v-for="m in THEME_MODES"
+            :key="m.value"
+            :class="{ active: themeMode === m.value }"
+            @click="setThemeMode(m.value)"
+          ><i class="bi" :class="m.icon" /> {{ m.label }}</button>
+        </div>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h3>Microphone</h3>
-      <div class="row">
-        <select v-model="settings.micDeviceId" class="input">
-          <option value="">Default</option>
-          <option v-for="m in mics" :key="m.deviceId" :value="m.deviceId">
-            {{ m.label || 'Mic ' + m.deviceId.slice(0, 6) }}
-          </option>
-        </select>
-        <button class="mini" @click="refreshMics">Refresh</button>
+    <details class="panel">
+      <summary><i class="bi bi-mic-fill" /> Microphone</summary>
+      <div class="panel__body">
+        <div class="row">
+          <select v-model="settings.micDeviceId" class="input">
+            <option value="">Default</option>
+            <option v-for="m in mics" :key="m.deviceId" :value="m.deviceId">
+              {{ m.label || 'Mic ' + m.deviceId.slice(0, 6) }}
+            </option>
+          </select>
+          <button class="mini grad" @click="refreshMics">Refresh</button>
+        </div>
+        <template v-if="hasBtRoute">
+          <label class="switch bt-switch">
+            <input type="checkbox" :checked="btOn" @change="toggleBt" />
+            Use a Bluetooth mic (headset / karaoke mic)
+          </label>
+          <p class="muted small">
+            {{ btAvailable ? 'A Bluetooth mic is connected and ready.'
+              : 'Pair the mic in Android Bluetooth settings, then turn this on.' }}
+            Bluetooth mics use the voice link, so capture quality is call-grade.
+          </p>
+          <p v-if="btError" class="bt-err">{{ btError }}</p>
+        </template>
       </div>
-    </div>
+    </details>
 
-    <div v-if="hasBtRoute" class="block">
-      <h3>Bluetooth microphone</h3>
-      <label class="switch">
-        <input type="checkbox" :checked="btOn" @change="toggleBt" />
-        Use a Bluetooth mic (headset / karaoke mic)
-      </label>
-      <p class="muted small">
-        {{ btAvailable ? 'A Bluetooth mic is connected and ready.'
-          : 'Pair the mic in Android Bluetooth settings, then turn this on.' }}
-        Bluetooth mics use the voice link, so capture quality is call-grade —
-        good enough for scoring and vocal FX. Tap "Refresh" above after pairing.
-      </p>
-      <p v-if="btError" class="bt-err">{{ btError }}</p>
-    </div>
-
-    <div class="block">
-      <h3>Default channel (video/audio)</h3>
-      <div class="segmented">
-        <button
-          v-for="opt in (['stereo', 'left', 'right'] as const)"
-          :key="opt"
-          :class="{ active: settings.voiceChannel === opt }"
-          @click="settings.voiceChannel = opt"
-        >{{ opt === 'stereo' ? 'Original' : opt === 'left' ? 'Left' : 'Right' }}</button>
+    <details class="panel">
+      <summary><i class="bi bi-soundwave" /> Playback &amp; scoring</summary>
+      <div class="panel__body">
+        <p class="lbl">Default channel (video/audio)</p>
+        <div class="segmented">
+          <button
+            v-for="opt in (['stereo', 'left', 'right'] as const)"
+            :key="opt"
+            :class="{ active: settings.voiceChannel === opt }"
+            @click="settings.voiceChannel = opt"
+          >{{ opt === 'stereo' ? 'Original' : opt === 'left' ? 'Left' : 'Right' }}</button>
+        </div>
+        <label class="switch">
+          <input type="checkbox" :checked="settings.scoringTolerance === 1"
+            @change="settings.scoringTolerance = ($event.target as HTMLInputElement).checked ? 1 : 0" />
+          Allow ±1 semitone (easier to score)
+        </label>
       </div>
-    </div>
+    </details>
 
-    <div class="block">
-      <h3>Scoring leniency</h3>
-      <label class="switch">
-        <input type="checkbox" :checked="settings.scoringTolerance === 1"
-          @change="settings.scoringTolerance = ($event.target as HTMLInputElement).checked ? 1 : 0" />
-        Allow ±1 semitone (easier to score)
-      </label>
-    </div>
+    <details class="panel">
+      <summary><i class="bi bi-sliders" /> Vocal effects</summary>
+      <div class="panel__body"><VocalFxPanel /></div>
+    </details>
 
-    <div class="block">
-      <h3>Vocal effects</h3>
-      <VocalFxPanel />
-    </div>
+    <details class="panel">
+      <summary><i class="bi bi-phone-fill" /> Phone remote</summary>
+      <div class="panel__body"><RemotePanel /></div>
+    </details>
 
-    <div class="block">
-      <RemotePanel />
-    </div>
-
-    <div v-if="hasLibFolder" class="block">
-      <h3>Library folder</h3>
-      <p class="muted">
-        Imported songs are copied into this folder — one big library that
-        survives reinstalls. You can also bulk-copy song files straight into it;
-        they are picked up on the next launch.
-      </p>
-      <div class="row">
-        <code class="dir">{{ libDir || '…' }}</code>
-        <button v-if="libCanChoose" class="mini" @click="chooseLibDir">Change…</button>
+    <details v-if="hasLibFolder" class="panel">
+      <summary><i class="bi bi-folder-fill" /> Library folder</summary>
+      <div class="panel__body">
+        <p class="muted">
+          Imported songs are copied into this folder — one big library that
+          survives reinstalls. You can also bulk-copy song files straight into it;
+          they are picked up on the next launch.
+        </p>
+        <div class="row">
+          <code class="dir">{{ libDir || '…' }}</code>
+          <button v-if="libCanChoose" class="mini grad" @click="chooseLibDir">Change…</button>
+        </div>
+        <p v-if="!libCanChoose" class="muted small">
+          On Android the folder is fixed (app files → <em>library</em>, visible over
+          USB). Back it up before uninstalling the app.
+        </p>
+        <p v-else class="muted small">
+          Changing the folder does not move existing files — new imports go to the
+          new folder; copy old files over manually if you want them rescanned there.
+        </p>
       </div>
-      <p v-if="!libCanChoose" class="muted small">
-        On Android the folder is fixed (app files → <em>library</em>, visible over
-        USB). Back it up before uninstalling the app.
-      </p>
-      <p v-else class="muted small">
-        Changing the folder does not move existing files — new imports go to the
-        new folder; copy old files over manually if you want them rescanned there.
-      </p>
-    </div>
+    </details>
 
-    <div class="block danger">
-      <h3>Library</h3>
-      <p>This <strong>permanently deletes every song</strong> — the database records <strong>and</strong> all files in the library folder. It can't be undone (only the built-in demo is restored).</p>
-      <button v-if="!confirmClear" class="del" @click="confirmClear = true">Clear library</button>
-      <div v-else class="confirm">
-        <span>Delete all songs and their files?</span>
-        <button class="del" @click="doClear">Yes, delete everything</button>
-        <button class="mini" @click="confirmClear = false">No</button>
+    <details v-if="hasRemoteConfig" class="panel">
+      <summary><i class="bi bi-gear-wide-connected" /> Advanced</summary>
+      <div class="panel__body">
+        <button class="mini grad" @click="openAdvanced">Remote server port…</button>
       </div>
-    </div>
+    </details>
 
-    <div v-if="hasLog" class="block">
-      <h3>Error log</h3>
-      <p class="muted small">
-        If something fails (like a conversion), open or copy the log and send it
-        in — it records the exact error so it can be fixed.
-      </p>
-      <div class="log-btns">
-        <button class="mini" @click="openLog"><i class="bi bi-file-earmark-text" /> Open log file</button>
-        <button class="mini" @click="copyLog"><i class="bi bi-clipboard" /> Copy log</button>
+    <details class="panel danger">
+      <summary><i class="bi bi-trash-fill" /> Clear library</summary>
+      <div class="panel__body">
+        <p>This <strong>permanently deletes every song</strong> — the database records <strong>and</strong> all files in the library folder. It can't be undone (only the built-in demo is restored).</p>
+        <button v-if="!confirmClear" class="del" @click="confirmClear = true">Clear library</button>
+        <div v-else class="confirm">
+          <span>Delete all songs and their files?</span>
+          <button class="del" @click="doClear">Yes, delete everything</button>
+          <button class="mini" @click="confirmClear = false">No</button>
+        </div>
       </div>
-      <p v-if="logMsg" class="muted small">{{ logMsg }}</p>
-    </div>
+    </details>
 
-    <div class="block">
-      <h3>About okara</h3>
-      <p class="muted">
-        <strong>okara</strong> is an open karaoke player — UltraStar scoring,
-        vocal effects, a phone remote, and a searchable songbook. Built by
-        <strong>nrldcm</strong>.
-      </p>
-      <p class="muted small">© 2026 nrldcm · Released under the MIT License.</p>
+    <details v-if="dev && hasLog" class="panel" open>
+      <summary><i class="bi bi-bug-fill" /> Error log (dev)</summary>
+      <div class="panel__body">
+        <p class="muted small">Open or copy the log and send it in — it records the exact error.</p>
+        <div class="log-btns">
+          <button class="mini" @click="openLog"><i class="bi bi-file-earmark-text" /> Open log file</button>
+          <button class="mini" @click="copyLog"><i class="bi bi-clipboard" /> Copy log</button>
+        </div>
+        <p v-if="logMsg" class="muted small">{{ logMsg }}</p>
+      </div>
+    </details>
 
-      <h4 class="disc-title">Disclaimer</h4>
-      <p class="muted small">
-        okara was made so you can keep enjoying karaoke discs (CDs/VCDs/DVDs)
-        you already own but can no longer play on aging physical players — it
-        plays your own media files and does not include, host, or distribute any
-        songs, lyrics, or karaoke content.
-      </p>
-      <p class="muted small">
-        okara does not promote or encourage piracy. If you obtain or import
-        copyrighted material without a licence, that is solely your
-        responsibility — the developer neither provides such content nor endorses
-        it. Only use files you legally own. The software is provided "as is",
-        without warranty of any kind; the author is not liable for how it is
-        used or for any content users add to it.
-      </p>
-    </div>
+    <details class="panel">
+      <summary><i class="bi bi-info-circle-fill" /> About okara</summary>
+      <div class="panel__body">
+        <p class="muted">
+          <strong>okara</strong> is an open karaoke player — UltraStar scoring,
+          vocal effects, a phone remote, and a searchable songbook. Built by
+          <strong>nrldcm</strong>.
+        </p>
+        <p class="muted small">© 2026 nrldcm · Released under the MIT License.</p>
+        <h4 class="disc-title">Disclaimer</h4>
+        <p class="muted small">
+          okara was made so you can keep enjoying karaoke discs (CDs/VCDs/DVDs)
+          you already own but can no longer play on aging physical players — it
+          plays your own media files and does not include, host, or distribute any
+          songs, lyrics, or karaoke content.
+        </p>
+        <p class="muted small">
+          okara does not promote or encourage piracy. If you obtain or import
+          copyrighted material without a licence, that is solely your
+          responsibility — the developer neither provides such content nor endorses
+          it. Only use files you legally own. The software is provided "as is",
+          without warranty of any kind; the author is not liable for how it is
+          used or for any content users add to it.
+        </p>
+      </div>
+    </details>
 
-    <div v-if="hasRemoteConfig" class="advanced-row">
-      <button class="advanced-btn" @click="openAdvanced"><i class="bi bi-gear-wide-connected" /> Advanced settings</button>
-    </div>
-
-    <p class="about">okara · open karaoke — UltraStar player + pitch scoring + phone remote</p>
     <p class="version">okara version {{ version }}</p>
 
     <Teleport to="body">
@@ -337,8 +351,25 @@ function doClear() {
 <style scoped>
 .set { padding: 4px 2px 40px; max-width: 720px; margin: 0 auto; }
 h1 { font-size: 26px; margin: 0 0 24px; }
-.block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px;
-  margin-bottom: 16px; }
+
+/* Collapsible panels (default closed). */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  margin-bottom: 12px; overflow: hidden; }
+.panel > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  padding: 15px 18px; font-size: 15px; font-weight: 600; user-select: none; }
+.panel > summary::-webkit-details-marker { display: none; }
+.panel > summary::after { content: '\F282'; font-family: 'bootstrap-icons'; margin-left: auto; font-size: 12px;
+  color: var(--text-faint); transition: transform .2s; font-weight: normal; }
+.panel[open] > summary::after { transform: rotate(180deg); }
+.panel > summary > .bi { background: var(--accent-grad); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; }
+.panel__body { padding: 0 18px 18px; }
+.panel.danger > summary > .bi { background: none; -webkit-text-fill-color: var(--danger); color: var(--danger); }
+.lbl { font-size: 13px; color: var(--text-muted); margin: 0 0 8px; }
+.bt-switch { margin-top: 16px; }
+/* Import panel embeds ImportView — trim padding and drop its redundant title. */
+.panel__body :deep(.imp) { padding: 0; max-width: none; }
+.panel__body :deep(.imp) > h1 { display: none; }
 .block h3 { margin: 0 0 12px; font-size: 15px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .input { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg);
@@ -349,7 +380,7 @@ h1 { font-size: 26px; margin: 0 0 24px; }
   padding: 4px; max-width: 100%; }
 .segmented button { border: none; background: none; color: var(--text); padding: 8px 18px; border-radius: 999px;
   cursor: pointer; opacity: .6; }
-.segmented button.active { background: var(--accent); color: var(--on-accent); opacity: 1; font-weight: 600; }
+.segmented button.active { background: var(--accent-grad); color: var(--on-accent); opacity: 1; font-weight: 600; }
 .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); }
 .danger p { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; }
 .muted { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; line-height: 1.5; }
@@ -376,7 +407,7 @@ h1 { font-size: 26px; margin: 0 0 24px; }
 .port-input:disabled { opacity: .4; }
 .port-msg { font-size: 13px; color: var(--accent); margin: 10px 0 0; }
 .modal__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
-.save { padding: 10px 18px; border-radius: 999px; border: none; background: var(--accent); color: var(--on-accent);
+.save { padding: 10px 18px; border-radius: 999px; border: none; background: var(--accent-grad); color: var(--on-accent);
   font-weight: 600; cursor: pointer; }
 .save:disabled { opacity: .5; }
 .del { padding: 10px 18px; border-radius: 999px; border: none; background: var(--danger); color: #fff; cursor: pointer; }

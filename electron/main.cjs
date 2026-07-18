@@ -296,7 +296,22 @@ ipcMain.handle('okara:set-remote-port', async (_e, port) => {
 // Ctrl+Shift+R) are gone too. Edit shortcuts (copy/paste) still work in inputs.
 Menu.setApplicationMenu(null)
 
-app.whenReady().then(createWindow)
+// Single instance: only one okara at a time (two would fight over the remote
+// server port, disc conversions, and the library folder). A second launch just
+// focuses the running window.
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+    }
+  })
+  app.whenReady().then(createWindow)
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

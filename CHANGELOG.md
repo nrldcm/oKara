@@ -13,6 +13,34 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.20] - 2026-07-18
+
+### Added
+
+- **Single instance** — only one okara runs at a time. Launching it again just
+  focuses the window that's already open, instead of starting a second copy
+  that would fight over the phone-remote port, disc conversions, and the library
+  folder.
+- **Startup splash screen** — a brief okara splash (logo + version) on launch.
+
+### Changed
+
+- **Redesigned Settings** — everything now lives in **collapsible panels**
+  (closed by default), so the page is tidy and you expand only what you need.
+- **Import moved into Settings** — it's now the first panel ("Import songs")
+  instead of a separate tab.
+- **Settings is a gear icon** in the top-right (next to the day/night toggle);
+  the center tabs are gone — the okara logo takes you back to the Library.
+- **Scrollbar sits at the window's edge** now (the whole page scrolls), instead
+  of an inset scrollbar in the middle of the content.
+- **Gradient styling to match the logo** — buttons, the toggle switches, and
+  form accents use the pink→orange brand gradient.
+
+### Developer
+
+- The **error log** is now hidden by default and toggled with
+  **Ctrl+Shift+Alt+F12** (it's a developer aid).
+
 ## [0.9.19] - 2026-07-18
 
 ### Fixed
@@ -510,7 +538,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.19...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.20...HEAD
+[0.9.20]: https://github.com/nrldcm/okara/compare/v0.9.19...v0.9.20
 [0.9.19]: https://github.com/nrldcm/okara/compare/v0.9.18...v0.9.19
 [0.9.18]: https://github.com/nrldcm/okara/compare/v0.9.17...v0.9.18
 [0.9.17]: https://github.com/nrldcm/okara/compare/v0.9.16...v0.9.17
