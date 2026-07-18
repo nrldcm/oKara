@@ -6,7 +6,6 @@ const path = require('path')
 const { pathToFileURL } = require('url')
 const crypto = require('crypto')
 const iso = require('./iso.cjs')
-const { transcode } = require('./transcode.cjs')
 const { log } = require('./log.cjs')
 
 // Content fingerprint: size + hash of the head and tail. Fast and identifies
@@ -130,113 +129,9 @@ function uniqueDest(dir, name) {
   return dest
 }
 
-// DVD/VCD codecs the browser can't play → must be transcoded to MP4 on import.
+// DVD/VCD video extensions accepted for raw import (played via live streaming).
 const TRANSCODE_EXT = ['vob', 'dat', 'mpg', 'mpeg', 'm2v', 'mpv', 'vro']
 const ext = (p) => (p.split('.').pop() || '').toLowerCase()
-
-/**
- * Import DVD/VCD .iso files: extract each video track, transcode it to MP4 in
- * the library folder, and report progress. Returns library entries.
- */
-// Convert several tracks at once, but not too many: each track both extracts a
-// big VOB (disk I/O) and runs ffmpeg (CPU). Too many at once thrashes the disk
-// (especially an HDD) so everything crawls and looks stuck. A small pool — up
-// to 4 — is the sweet spot: real parallel speedup without I/O gridlock. Each
-// ffmpeg then gets a fair share of the cores.
-function importCores() {
-  return Math.max(2, os.cpus()?.length || 2)
-}
-function importConcurrency(jobCount) {
-  return Math.max(1, Math.min(4, importCores(), jobCount))
-}
-
-async function importIsos(isoPaths, onProgress, signal) {
-  const dir = libraryDir()
-  const out = []
-  // First tally the work so progress can span all tracks across all discs.
-  const jobs = []
-  const reserved = new Set() // dest names claimed up front so parallel workers never collide
-  for (const isoPath of isoPaths) {
-    let vids = []
-    try { vids = iso.videoFiles(isoPath) } catch (e) { log('videoFiles failed for', isoPath, e); vids = [] }
-    if (!vids.length) log('no video tracks found in', isoPath)
-    const label = path.parse(isoPath).name
-    vids.forEach((v, i) => {
-      // Pre-assign each track's library destination sequentially (single
-      // thread) so concurrent transcodes can't both pick the same filename.
-      let dest = uniqueDest(dir, `${label}-${String(i + 1).padStart(2, '0')}.mp4`)
-      while (reserved.has(dest)) {
-        const p = path.parse(dest)
-        dest = uniqueDest(dir, `${p.name} (x)${p.ext}`)
-      }
-      reserved.add(dest)
-      jobs.push({ isoPath, v, label, i, dest })
-    })
-  }
-  const total = jobs.length
-  if (!total) return out
-
-  // Aggregate progress across parallel jobs: overall = (done + Σ active
-  // fractions) / total. `tracks` carries each in-flight encode so the UI can
-  // show a live sub-bar per track (parallel converts don't look "stuck").
-  let done = 0
-  const active = new Map() // slot → { name, fraction }
-  const emit = (name, error) => {
-    const vals = [...active.values()]
-    onProgress?.({
-      index: done,
-      total,
-      name,
-      error,
-      fraction: vals.reduce((a, b) => a + b.fraction, 0),
-      tracks: vals.map((v) => ({ name: v.name, fraction: v.fraction })),
-    })
-  }
-
-  // Split cores across the parallel encodes so N ffmpegs don't each grab all
-  // cores. Single track → all cores on it.
-  const conc = importConcurrency(total)
-  const threadsPer = Math.max(1, Math.floor(importCores() / conc))
-
-  const scratch = libraryTemp()
-  const runJob = async (job, slot) => {
-    const tmp = path.join(scratch, `okara-${Date.now()}-${slot}-${job.i}.${ext(job.v.path)}`)
-    const trackName = path.basename(job.dest)
-    active.set(slot, { name: trackName, fraction: 0 })
-    emit(trackName)
-    try {
-      if (signal?.aborted) throw new Error('cancelled')
-      await iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
-      await transcode(tmp, job.dest, (f) => {
-        active.set(slot, { name: trackName, fraction: f })
-        emit(trackName)
-      }, { threads: threadsPer, signal })
-      out.push({ name: path.basename(job.dest), path: job.dest })
-    } catch (e) {
-      // Drop the truncated output so a failed track never lands in the library.
-      try { await fsp.unlink(job.dest) } catch { /* not created */ }
-      log('import track failed:', job.dest, e)
-      emit(path.basename(job.v.path), String(e && e.message || e))
-    } finally {
-      try { await fsp.unlink(tmp) } catch { /* already gone */ }
-      active.delete(slot)
-      done++
-      emit(`${total - done} track${total - done === 1 ? '' : 's'} left`)
-    }
-  }
-
-  // Fixed pool of workers pulling from the shared job list.
-  let next = 0
-  const worker = async (slot) => {
-    while (next < jobs.length) {
-      if (signal?.aborted) break // stop picking up new tracks on cancel
-      const job = jobs[next++]
-      await runJob(job, slot)
-    }
-  }
-  await Promise.all(Array.from({ length: conc }, (_, s) => worker(s)))
-  return out
-}
 
 /**
  * Import DVD/VCD .iso files WITHOUT converting: extract each raw video track
@@ -304,28 +199,6 @@ async function copyVideosRaw(paths, onProgress, knownKeys) {
     } catch (e) {
       onProgress?.({ index: done, total, name: path.basename(src), error: String(e && e.message || e) })
     } finally { done++ }
-  }
-  return out
-}
-
-/** Transcode picked DVD/VCD video files to MP4 in the library folder. */
-async function transcodeVideos(paths, onProgress, signal) {
-  const dir = libraryDir()
-  const out = []
-  const total = paths.length
-  let done = 0
-  for (const src of paths) {
-    if (signal?.aborted) break
-    const dest = uniqueDest(dir, `${path.parse(src).name}.mp4`)
-    try {
-      await transcode(src, dest, (f) => onProgress?.({ index: done, total, name: path.basename(dest), fraction: f }), { signal })
-      out.push({ name: path.basename(dest), path: dest })
-    } catch (e) {
-      try { await fsp.unlink(dest) } catch { /* not created */ }
-      onProgress?.({ index: done, total, name: path.basename(src), error: String(e && e.message || e) })
-    } finally {
-      done++
-    }
   }
   return out
 }

@@ -3,10 +3,9 @@ const os = require('os')
 const path = require('path')
 const fs = require('fs')
 const { startRemoteServer } = require('./server.cjs')
-const { registerLibraryIpc, readConfig, writeConfig, libraryDir, libraryTemp, uniqueDest } = require('./library.cjs')
-const { startMediaServer, startStreamServer } = require('./stream.cjs')
+const { registerLibraryIpc, readConfig, writeConfig, libraryDir, libraryTemp } = require('./library.cjs')
+const { startStreamServer } = require('./stream.cjs')
 const isoLib = require('./iso.cjs')
-const { transcode } = require('./transcode.cjs')
 const { log, logPath } = require('./log.cjs')
 
 // Keep the app alive if a background job (transcode, disc scan, socket) throws
@@ -17,7 +16,6 @@ process.on('unhandledRejection', (reason) => { log('unhandledRejection:', reason
 
 let win = null
 let remote = null
-let streamer = null
 let liveStreamer = null // live disc/ISO transcode-stream (instant play)
 // Sources the user explicitly opened for "play from disc/ISO" — allowed for
 // the local transcode-stream server.
@@ -74,7 +72,6 @@ async function createWindow() {
 
   remote = await startRemote(readConfig().remotePort)
   const allowedRoots = () => [os.tmpdir(), libraryDir(), libraryTemp(), ...allowedSources]
-  streamer = await startMediaServer(allowedRoots)
   liveStreamer = await startStreamServer(allowedRoots)
   // Clear leftover scratch files from a previous run (nothing is in use yet at
   // launch), so temp extractions/prepared clips don't pile up on the drive.
@@ -249,62 +246,6 @@ ipcMain.handle('okara:disc-pick', async (_e, kind) => {
     src: { file: f },
   }))
   return { label, tracks }
-})
-
-// Prepare a disc/ISO track for smooth playback: transcode it to a complete
-// temp MP4 (proper keyframes + deinterlaced), then return a file URL the
-// player can seek. Progress is reported on okara:disc-progress.
-let discTmpCount = 0
-ipcMain.handle('okara:disc-prepare', async (_e, srcArg) => {
-  const src = srcArg || {}
-  // Extract/transcode on the library drive (usually more free space than C:).
-  const tmpBase = path.join(libraryTemp(), `okara-play-${Date.now()}-${discTmpCount++}`)
-  let input = src.file
-  try {
-    if (src.iso) {
-      input = tmpBase + '.' + (isoLib.VIDEO_EXT.find((e) => true) || 'vob')
-      await isoLib.extractFile(src.iso, src.extent, src.size, input)
-    }
-    if (!input || !fs.existsSync(input)) throw new Error('Track not found')
-    const out = tmpBase + '.mp4'
-    await transcode(input, out, (f) => send('okara:disc-progress', { fraction: f }))
-    if (src.iso) { try { fs.unlinkSync(input) } catch { /* */ } }
-    return { url: streamer.fileUrl(out) }
-  } catch (e) {
-    log('disc-prepare failed:', JSON.stringify(src), e)
-    return { error: String((e && e.message) || e) }
-  }
-})
-
-// Materialize a disc/ISO track into the LIBRARY folder (permanent): transcode
-// once to a real MP4 so it survives restarts and never re-converts. Returns
-// { path } (the library file). Used when a disc-ref library song is first
-// played. Falls back to disc-prepare (temp) only if this fails.
-const safeName = (s) => String(s || 'track').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80) || 'track'
-ipcMain.handle('okara:disc-materialize', async (_e, srcArg, title) => {
-  const src = srcArg || {}
-  let tmp = null
-  let dest = null
-  try {
-    let input = src.file
-    if (src.iso) {
-      tmp = path.join(libraryTemp(), `okara-mat-${Date.now()}-${discTmpCount++}.vob`)
-      await isoLib.extractFile(src.iso, src.extent, src.size, tmp)
-      input = tmp
-    }
-    if (!input || !fs.existsSync(input)) throw new Error('Track not found')
-    dest = uniqueDest(libraryDir(), `${safeName(title)}.mp4`)
-    await transcode(input, dest, (f) => send('okara:disc-progress', { fraction: f }))
-    return { path: dest }
-  } catch (e) {
-    // A failed transcode leaves a truncated file inside the library — remove it
-    // so it never shows up as a broken "song".
-    if (dest) { try { fs.unlinkSync(dest) } catch { /* not created */ } }
-    log('disc-materialize failed:', JSON.stringify(src), e)
-    return { error: String((e && e.message) || e) }
-  } finally {
-    if (tmp) { try { fs.unlinkSync(tmp) } catch { /* */ } }
-  }
 })
 
 // Error log access — the user can open the file or copy its text to send in.

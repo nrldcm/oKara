@@ -2,7 +2,7 @@
 import type { RuntimeSong } from '~/composables/useLibrary'
 
 const props = defineProps<{ songs: RuntimeSong[] }>()
-const emit = defineEmits<{ play: [RuntimeSong]; reserve: [RuntimeSong]; remove: [string]; renumber: [string, number]; mapCues: [RuntimeSong]; editMeta: [{ id: string; number: number; title: string; artist: string }] }>()
+const emit = defineEmits<{ play: [RuntimeSong]; reserve: [RuntimeSong]; playNext: [RuntimeSong]; remove: [string]; renumber: [string, number]; mapCues: [RuntimeSong]; editMeta: [{ id: string; number: number; title: string; artist: string }] }>()
 
 const query = ref('')
 // Songbook-style list (default) vs. thumbnail grid.
@@ -93,11 +93,9 @@ function editDetails(s: RuntimeSong) {
         <span class="c-title" :title="s.title">{{ s.title }}</span>
         <span class="c-artist" :title="s.artist">{{ s.artist }}</span>
         <span class="c-act">
-          <button class="act play" title="Play now" @click="emit('play', s)"><i class="bi bi-play-fill" /></button>
-          <button class="act" title="Add to queue" @click="emit('reserve', s)"><i class="bi bi-plus-lg" /></button>
-          <button class="act" title="Edit number / title / artist" @click="editDetails(s)"><i class="bi bi-pencil-fill" /></button>
-          <button v-if="s.kind === 'video' && !s.clip && s.videoPath" class="act" title="Map songs inside this video" @click="emit('mapCues', s)"><i class="bi bi-scissors" /></button>
-          <button class="act danger" title="Remove" @click="emit('remove', s.id)"><i class="bi bi-x-lg" /></button>
+          <button class="act play" title="Play now" @click="emit('play', s)"><i class="bi bi-play-fill" /> <span>Play</span></button>
+          <button class="act" title="Play next (front of queue)" @click="emit('playNext', s)"><i class="bi bi-skip-forward-fill" /> <span>Next</span></button>
+          <button class="act" title="Reserve (add to queue)" @click="emit('reserve', s)"><i class="bi bi-plus-lg" /> <span>Reserve</span></button>
         </span>
       </div>
     </div>
@@ -148,10 +146,14 @@ function editDetails(s: RuntimeSong) {
 .c-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .c-artist { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .c-act { display: flex; gap: 6px; justify-content: flex-end; }
-.act { border: none; background: var(--surface-2); color: var(--text-muted); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 13px; }
-.act:hover { color: var(--text); }
+.act { border: none; background: var(--surface-2); color: var(--text); padding: 7px 12px; border-radius: 999px;
+  cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.act:hover { background: var(--border); }
 .act.play { background: var(--accent-grad); color: #fff; }
-.act.danger:hover { color: var(--danger); }
+@media (max-width: 720px) {
+  .act { padding: 7px 9px; }
+  .act span { display: none; } /* icons only on narrow screens */
+}
 @media (max-width: 600px) {
   .songlist__head, .songrow { grid-template-columns: 54px 1fr auto; }
   .songlist__head .c-artist, .songrow .c-artist { display: none; }

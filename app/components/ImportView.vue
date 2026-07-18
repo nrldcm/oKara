@@ -167,15 +167,6 @@ function onPick(e: Event) {
 .imp { padding: 4px 2px 40px; max-width: 760px; margin: 0 auto; }
 h1 { font-size: 26px; margin: 0 0 8px; }
 .lead { color: var(--text-muted); line-height: 1.55; margin-bottom: 22px; }
-.field { margin-bottom: 22px; }
-.field > span { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
-.chips { display: flex; gap: 10px; flex-wrap: wrap; }
-.chip { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px;
-  border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
-.chip.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
-.chip em { font-size: 11px; color: var(--text-faint); font-style: normal; }
-.label-input { width: 100%; max-width: 360px; padding: 11px 15px; border-radius: 12px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text); font-size: 14px; }
 .drop { border: 2px dashed var(--border); border-radius: 18px; padding: 40px 20px; text-align: center; transition: .15s; }
 .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .drop__icon { font-size: 40px; }
@@ -211,16 +202,6 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .conv__cancel { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px;
   padding: 6px 14px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
 .conv__cancel:hover { border-color: var(--accent); color: var(--accent); }
-.play-now { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
-.play-now__lead { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; line-height: 1.5; }
-.tracks { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-.track { display: flex; align-items: center; gap: 12px; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 10px; padding: 10px 12px; cursor: pointer; }
-.track:hover { border-color: var(--accent); }
-.track__no { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; font-size: 13px; }
-.track__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
-.track__play { border: none; background: var(--accent-grad); color: #fff; border-radius: 999px; padding: 6px 14px;
-  font-weight: 600; cursor: pointer; font-size: 13px; }
 .note { margin-top: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
 .note h3 { margin: 0 0 8px; font-size: 15px; }
 .note ul { margin: 0; padding-left: 18px; line-height: 1.7; color: var(--text-muted); font-size: 14px; }

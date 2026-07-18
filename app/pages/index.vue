@@ -31,7 +31,6 @@ onMounted(async () => {
   initTheme()
   loadSettings()
   importJob.ensureListener() // keep convert progress alive across tab switches
-  ;(window as any).okara?.onDiscProgress?.((p: any) => { prepPct.value = Math.round((p.fraction ?? 0) * 100) })
   // When a background conversion finishes, pick up the new MP4s (covers a
   // refresh that happened mid-conversion).
   ;(window as any).okara?.library?.onImportDone?.(() => library.rescan())
@@ -49,49 +48,24 @@ onMounted(async () => {
 
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
-// A disc/ISO library song has no MP4 yet — produce it (transcode to the
-// library folder, permanent) on first play, then it plays like any song.
+// A disc/ISO/raw-video library song has no browser-playable URL — it plays via
+// the live stream server (transcode-on-the-fly). A cue song streams straight
+// from its timecode (dial a code → jump to that song); a legacy disc-ref song
+// streams from its ISO extent. Fresh URL every time.
 async function resolvePlayable(song: RuntimeSong): Promise<RuntimeSong | null> {
-  const okaraS = (window as any).okara
-  // Raw disc video (VOB/DAT/MPEG…) imported without converting — play it via
-  // the live stream server (transcode-on-the-fly). A cue song streams straight
-  // from its timecode (dial a code → jump to that song). Fresh URL every time.
-  if (song?.needsStream && song.videoPath && okaraS?.discStream) {
-    const src: any = { file: song.videoPath }
-    if (song.clip) {
-      src.seek = song.clip.startSec
-      if (song.clip.endSec != null) src.dur = Math.max(1, song.clip.endSec - song.clip.startSec)
-    }
-    const res = await okaraS.discStream(src)
-    if (res?.url) { song.videoUrl = res.url; return song }
-    prepError.value = res?.error || 'Could not start playback.'
-    return null
-  }
-  if (!song?.disc || song.videoUrl) return song
   const okara = (window as any).okara
-  if (!okara?.discMaterialize && !okara?.discPrepare) {
-    prepError.value = 'This build is out of date. Update to okara v0.9.8+ to play disc/ISO tracks.'
-    return null
+  const streamSrc = song?.needsStream && song.videoPath ? { file: song.videoPath } as any
+    : song?.disc && !song.videoUrl ? { ...song.disc } as any
+    : null
+  if (!streamSrc || !okara?.discStream) return song
+  if (song.clip) {
+    streamSrc.seek = song.clip.startSec
+    if (song.clip.endSec != null) streamSrc.dur = Math.max(1, song.clip.endSec - song.clip.startSec)
   }
-  preparing.value = true
-  prepPct.value = 0
-  prepError.value = ''
-  try {
-    if (okara.discMaterialize) {
-      const res = await okara.discMaterialize(song.disc, song.title)
-      if (res?.path) { await library.markMaterialized(song.id, res.path); return song }
-      // On error, fall through to the temp path rather than aborting.
-    }
-    // Fallback: a temporary prepared file (not permanent).
-    if (okara.discPrepare) {
-      const res = await okara.discPrepare(song.disc)
-      if (res?.url) { song.videoUrl = res.url; return song }
-      prepError.value = res?.error || 'Could not prepare this track.'
-    }
-    return null
-  } finally {
-    preparing.value = false
-  }
+  const res = await okara.discStream(streamSrc)
+  if (res?.url) { song.videoUrl = res.url; return song }
+  prepError.value = res?.error || 'Could not start playback.'
+  return null
 }
 
 async function play(song: RuntimeSong) {
@@ -103,10 +77,7 @@ async function play(song: RuntimeSong) {
   nowPlaying.value = resolved
 }
 
-// Disc/ISO "materialize" progress overlay (for legacy lazy disc-ref songs that
-// convert to the library folder on first play).
-const preparing = ref(false)
-const prepPct = ref(0)
+// Shown if a disc/ISO track can't start streaming.
 const prepError = ref('')
 
 async function playNext() {
@@ -149,6 +120,14 @@ function reserveSong(s: RuntimeSong) {
   reserved.value.push(s)
   syncReserved()
   bus.flash(`Reserved: ${s.title}`)
+}
+
+// Play Next — jump to the front of the queue (plays right after the current song).
+function onPlayNext(s: RuntimeSong) {
+  if (!nowPlaying.value) { play(s); return }
+  reserved.value.unshift(s)
+  syncReserved()
+  bus.flash(`Playing next: ${s.title}`)
 }
 
 function reserveNumber(num?: number) {
@@ -379,7 +358,7 @@ async function onClear() {
 
     <main class="content">
       <div class="content__inner">
-        <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @reserve="reserveSong" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" @edit-meta="(p) => library.editMeta(p.id, p)" />
+        <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @reserve="reserveSong" @play-next="onPlayNext" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" @edit-meta="(p) => library.editMeta(p.id, p)" />
         <SettingsView v-else @clear="onClear" />
       </div>
     </main>
@@ -393,15 +372,6 @@ async function onClear() {
       </div>
     </Transition>
 
-    <div v-if="preparing" class="prep-overlay">
-      <div class="prep-box">
-        <i class="bi bi-disc-fill spin" />
-        <h3>Preparing track…</h3>
-        <p>Converting for smooth playback (deinterlaced, clean keyframes).</p>
-        <div class="prep-bar"><div class="prep-fill" :style="{ width: prepPct + '%' }" /></div>
-        <span class="prep-pct">{{ prepPct }}%</span>
-      </div>
-    </div>
     <p v-if="prepError" class="prep-error">{{ prepError }}</p>
 
     <SongMapper v-if="mapperSong" :song="mapperSong" @close="mapperSong = null" @saved="onMapped" />
@@ -485,25 +455,6 @@ async function onClear() {
 .splash__ver { position: absolute; bottom: 26px; color: var(--text-faint); font-size: 12px; }
 .splash-enter-active, .splash-leave-active { transition: opacity .5s ease; }
 .splash-enter-from, .splash-leave-to { opacity: 0; }
-.disc-banner { display: flex; align-items: center; gap: 12px; padding: 10px 18px;
-  background: var(--accent-grad); color: #fff; }
-.disc-banner .bi-disc-fill { font-size: 20px; }
-.disc-banner__label { flex: 1; font-size: 14px; }
-.disc-banner__play { border: none; background: rgba(255,255,255,.95); color: #111; border-radius: 999px;
-  padding: 7px 16px; font-weight: 700; cursor: pointer; }
-.disc-banner__browse { border: 1px solid rgba(255,255,255,.7); background: transparent; color: #fff;
-  border-radius: 999px; padding: 7px 14px; cursor: pointer; }
-.disc-banner__close { border: none; background: none; color: #fff; cursor: pointer; font-size: 15px; opacity: .85; }
-.prep-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.7); display: flex;
-  align-items: center; justify-content: center; }
-.prep-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px;
-  text-align: center; max-width: 380px; width: 90%; }
-.prep-box .bi-disc-fill { font-size: 40px; color: var(--accent); }
-.prep-box h3 { margin: 12px 0 4px; }
-.prep-box p { color: var(--text-muted); font-size: 13px; margin: 0 0 16px; }
-.prep-bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
-.prep-fill { height: 100%; background: var(--accent-grad); transition: width .2s; }
-.prep-pct { font-size: 12px; color: var(--text-muted); }
 .prep-error { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 60;
   background: var(--danger); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14px; }
 .stage-overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg); }

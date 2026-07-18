@@ -13,6 +13,28 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.26] - 2026-07-18
+
+### Changed
+
+- **Library list actions are now Play · Play Next · Reserve** (no
+  edit/delete/map in the list). Editing (number/title/artist), deleting, and
+  cue-mapping live in the **grid** view (toggle top-right) — the list stays a
+  clean karaoke songbook.
+
+### Fixed
+
+- The **edit (number/title/artist)** action now actually saves — `editMeta`
+  wasn't wired to the library before.
+
+### Internal
+
+- Large dead-code cleanup after the disc-playback rework: removed the unused
+  transcode-based importers, the extra media server, the disc
+  materialize/prepare path, the old disc-inserted banner + its composable, and
+  various orphaned CSS/IPC. Legacy disc-ref songs now play through the same live
+  stream. No user-facing behavior change beyond the two items above.
+
 ## [0.9.25] - 2026-07-18
 
 ### Changed
@@ -611,7 +633,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.25...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.26...HEAD
+[0.9.26]: https://github.com/nrldcm/okara/compare/v0.9.25...v0.9.26
 [0.9.25]: https://github.com/nrldcm/okara/compare/v0.9.24...v0.9.25
 [0.9.24]: https://github.com/nrldcm/okara/compare/v0.9.23...v0.9.24
 [0.9.23]: https://github.com/nrldcm/okara/compare/v0.9.22...v0.9.23

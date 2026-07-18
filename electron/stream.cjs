@@ -1,12 +1,8 @@
-// Local media servers on 127.0.0.1 (host-local, never on the LAN).
-//
-//  • startMediaServer — serves a finished MP4 with HTTP Range (seekable), used
-//    for materialized library files.
-//  • startStreamServer — LIVE transcodes a disc/ISO track to a fragmented MP4
-//    and streams it to the host <video> so it starts playing within ~1–2s,
-//    like inserting a disc in a hardware player. No file is written. Clean
-//    fragments (frag_keyframe+empty_moov) + regular keyframes avoid the old
-//    "datamosh" that a half-formed fMP4 caused.
+// Local live-stream server on 127.0.0.1 (host-local, never on the LAN):
+// startStreamServer LIVE-transcodes a disc/ISO/raw video track to a fragmented
+// MP4 and streams it to the host <video> so it starts playing within ~1–2s,
+// like inserting a disc in a hardware player. No file is written. Clean
+// fragments (frag_keyframe+empty_moov) + regular keyframes avoid datamosh.
 const http = require('http')
 const crypto = require('crypto')
 const fs = require('fs')
@@ -17,56 +13,6 @@ let log = () => {}
 try { ({ log } = require('./log.cjs')) } catch { /* optional */ }
 
 const SECTOR = 2048
-
-function startMediaServer(getAllowedRoots) {
-  const token = crypto.randomBytes(16).toString('hex')
-
-  const server = http.createServer((req, res) => {
-    const url = new URL(req.url, 'http://127.0.0.1')
-    if (url.pathname !== '/file' || url.searchParams.get('t') !== token) {
-      res.writeHead(403); res.end(); return
-    }
-    const file = url.searchParams.get('path')
-    const allowed = file && getAllowedRoots().some((r) => path.resolve(file).startsWith(r))
-    if (!allowed) { res.writeHead(403); res.end(); return }
-
-    let stat
-    try { stat = fs.statSync(file) } catch { res.writeHead(404); res.end(); return }
-
-    const range = req.headers.range
-    if (range) {
-      const m = /bytes=(\d+)-(\d*)/.exec(range)
-      const start = parseInt(m[1], 10)
-      const end = m[2] ? parseInt(m[2], 10) : stat.size - 1
-      res.writeHead(206, {
-        'Content-Type': 'video/mp4',
-        'Accept-Ranges': 'bytes',
-        'Content-Range': `bytes ${start}-${end}/${stat.size}`,
-        'Content-Length': end - start + 1,
-      })
-      fs.createReadStream(file, { start, end }).pipe(res)
-    } else {
-      res.writeHead(200, {
-        'Content-Type': 'video/mp4',
-        'Accept-Ranges': 'bytes',
-        'Content-Length': stat.size,
-      })
-      fs.createReadStream(file).pipe(res)
-    }
-  })
-
-  return new Promise((resolve) => {
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address()
-      resolve({
-        token,
-        port,
-        fileUrl: (p) => `http://127.0.0.1:${port}/file?t=${token}&path=${encodeURIComponent(p)}`,
-        close: () => server.close(),
-      })
-    })
-  })
-}
 
 // ffmpeg args to live-transcode DVD/VCD program streams → fragmented MP4 on
 // stdout, fast enough for real-time (ultrafast/zerolatency) and deinterlaced.
@@ -161,4 +107,4 @@ function startStreamServer(getAllowedRoots) {
   })
 }
 
-module.exports = { startMediaServer, startStreamServer }
+module.exports = { startStreamServer }

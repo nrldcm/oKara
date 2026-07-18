@@ -226,19 +226,8 @@ export function useLibrary() {
     return songs.value.reduce((m, s) => Math.max(m, s.number || 0), 1000) + 1
   }
 
-  /**
-   * Optional "volume label" (e.g. "MegaVision Vol 3") prefixes titles so
-   * generic DVD track names (AVSEQ01…) stay identifiable per volume, like a
-   * songbook.
-   */
-  function applyLabel(detected: StoredSong[], label?: string) {
-    const l = label?.trim()
-    if (!l) return
-    for (const s of detected) s.title = `${l} – ${s.title}`
-  }
-
   /** Import browser File objects (drag-and-drop / file inputs on the web). */
-  async function importFiles(files: File[], source: SongSource, label?: string): Promise<number> {
+  async function importFiles(files: File[], source: SongSource): Promise<number> {
     const lib = bridge()
     if (lib) {
       // Copy the dropped files into the library folder first so they are
@@ -254,7 +243,6 @@ export function useLibrary() {
       if (allResolved && paths.length) {
         const entries = await lib.importPaths(paths)
         const detected = await detectSongs(entries, source)
-        applyLabel(detected, label)
         await store(detected)
         return detected.length
       }
@@ -262,19 +250,17 @@ export function useLibrary() {
       // keep them as blobs in IndexedDB rather than failing the import.
     }
     const detected = await detectSongs(files.map((f) => ({ name: f.name, file: f })), source)
-    applyLabel(detected, label)
     await store(detected)
     return detected.length
   }
 
   /** Import via the native file/folder picker (desktop + Android). */
-  async function importFromPicker(kind: 'files' | 'folder', source: SongSource, label?: string): Promise<number> {
+  async function importFromPicker(kind: 'files' | 'folder', source: SongSource): Promise<number> {
     const lib = bridge()
     if (!lib) return 0
     const entries = await lib.pickImport(kind)
     if (!entries.length) return 0
     const detected = await detectSongs(entries, source)
-    applyLabel(detected, label)
     await store(detected)
     return detected.length
   }
@@ -299,57 +285,6 @@ export function useLibrary() {
     const fresh = detected.filter((s) => !s.importKey || !have.has(s.importKey))
     if (fresh.length) await store(fresh)
     return fresh.length
-  }
-
-  /**
-   * Register disc/ISO tracks as lazy library songs — searchable right away
-   * (number/title) and shown in the remote songbook, but their playable MP4 is
-   * produced on first play. Deduped by a stable id from the source, so
-   * re-loading the same ISO never creates duplicates.
-   */
-  async function addDiscTracks(tracks: { title: string; src: any }[], label?: string): Promise<number> {
-    const known = new Set(songs.value.map((s) => s.id))
-    let n = nextNumber()
-    const fresh: StoredSong[] = []
-    for (const t of tracks) {
-      const src = t.src || {}
-      const id = src.iso ? `disc:${src.iso}#${src.extent}`
-        : src.file ? `disc:${src.file}`
-        : `disc:${label || ''}:${t.title}`
-      if (known.has(id)) continue
-      known.add(id)
-      fresh.push({
-        id,
-        number: n++,
-        title: t.title,
-        artist: label || 'Disc',
-        kind: 'video',
-        source: 'Other',
-        hasScoring: false,
-        createdAt: Date.now(),
-        disc: { iso: src.iso, extent: src.extent, size: src.size, file: src.file },
-      })
-    }
-    for (const s of fresh) await dbPut(s)
-    songs.value = [...fresh.map(toRuntime), ...songs.value]
-    return fresh.length
-  }
-
-  /**
-   * Once a disc-ref song's MP4 exists in the library folder, promote it to a
-   * normal file-backed song so it plays instantly and survives a restart.
-   */
-  async function markMaterialized(id: string, videoPath: string): Promise<string | undefined> {
-    const song = songs.value.find((s) => s.id === id)
-    if (!song) return undefined
-    song.videoPath = videoPath
-    song.videoUrl = toMediaUrl(videoPath)
-    song.paths = [...(song.paths ?? []), videoPath]
-    delete song.disc
-    const { audioUrl, videoUrl, coverUrl, ...stored } = song
-    await dbPut(stored)
-    songs.value = [...songs.value]
-    return song.videoUrl
   }
 
   /**
@@ -460,7 +395,7 @@ export function useLibrary() {
     await load()
   }
 
-  return { songs, loaded, load, rescan: scanFolder, importFiles, importFromPicker, importDisc, addDiscTracks, markMaterialized, addClips, remove, clearAll, findByNumber, renumber }
+  return { songs, loaded, load, rescan: scanFolder, importFiles, importFromPicker, importDisc, addClips, remove, clearAll, findByNumber, renumber, editMeta }
 }
 
 /** Desktop app can transcode DVD/VCD to MP4 (native ffmpeg present). */

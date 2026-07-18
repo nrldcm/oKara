@@ -37,23 +37,13 @@ contextBridge.exposeInMainWorld('okara', {
   openLog: () => ipcRenderer.invoke('okara:open-log'),
   readLog: () => ipcRenderer.invoke('okara:read-log'),
 
-  // Play from a disc / ISO. discPick returns { label, tracks:[{title,src}] };
-  // discPrepare transcodes a track's src to a temp MP4 and returns { url } to
-  // play (or { error }), reporting progress on onDiscProgress.
+  // Play from a disc / ISO. discPick returns { label, tracks:[{title,src}] } to
+  // list; discStream returns { url } for a <video> to stream a track live.
   discPick: (kind) => ipcRenderer.invoke('okara:disc-pick', kind),
   // Inspect a disc/ISO for a songbook index file (lists all files + previews).
   discInspect: () => ipcRenderer.invoke('okara:disc-inspect'),
   // Instant streaming play (no convert/wait) — returns { url } for a <video>.
   discStream: (src) => ipcRenderer.invoke('okara:disc-stream', src),
-  discPrepare: (src) => ipcRenderer.invoke('okara:disc-prepare', src),
-  // Transcode a disc/ISO track into the library folder (permanent) and return
-  // { path } — used the first time a disc-ref library song is played.
-  discMaterialize: (src, title) => ipcRenderer.invoke('okara:disc-materialize', src, title),
-  onDiscProgress: (cb) => {
-    const h = (_e, p) => cb(p)
-    ipcRenderer.on('okara:disc-progress', h)
-    return () => ipcRenderer.removeListener('okara:disc-progress', h)
-  },
   // Detect inserted DVD/VCD discs in the optical/removable drives.
   detectDiscs: () => ipcRenderer.invoke('okara:detect-discs'),
   onDiscInserted: (cb) => {
