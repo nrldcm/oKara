@@ -4,9 +4,29 @@ const fsp = require('fs/promises')
 const os = require('os')
 const path = require('path')
 const { pathToFileURL } = require('url')
+const crypto = require('crypto')
 const iso = require('./iso.cjs')
 const { transcode } = require('./transcode.cjs')
 const { log } = require('./log.cjs')
+
+// Content fingerprint: size + hash of the head and tail. Fast and identifies
+// the same track regardless of filename, so re-importing a disc won't duplicate.
+function contentKeyFromFd(fd, start, size) {
+  const h = crypto.createHash('sha1')
+  const n1 = Math.min(65536, size)
+  const b1 = Buffer.alloc(n1); fs.readSync(fd, b1, 0, n1, start); h.update(b1)
+  if (size > 131072) { const b2 = Buffer.alloc(65536); fs.readSync(fd, b2, 0, 65536, start + size - 65536); h.update(b2) }
+  h.update('|' + size)
+  return h.digest('hex')
+}
+function isoTrackKey(isoPath, extent, size) {
+  const fd = fs.openSync(isoPath, 'r')
+  try { return contentKeyFromFd(fd, extent * 2048, size) } catch { return null } finally { try { fs.closeSync(fd) } catch { /* */ } }
+}
+function fileContentKey(p) {
+  const fd = fs.openSync(p, 'r')
+  try { return contentKeyFromFd(fd, 0, fs.fstatSync(fd).size) } catch { return null } finally { try { fs.closeSync(fd) } catch { /* */ } }
+}
 
 // The on-disk song library: every import is copied here so the whole
 // collection lives in one folder that survives reinstalls. The location is
@@ -218,6 +238,76 @@ async function importIsos(isoPaths, onProgress, signal) {
   return out
 }
 
+/**
+ * Import DVD/VCD .iso files WITHOUT converting: extract each raw video track
+ * (VOB/DAT/…) into the library folder as-is. Fast (I/O only, no transcode) —
+ * playback streams the raw file on the fly. Returns library entries.
+ */
+async function importIsosRaw(isoPaths, onProgress, signal, knownKeys) {
+  const dir = libraryDir()
+  const known = new Set(knownKeys || [])
+  const out = []
+  const jobs = []
+  const reserved = new Set()
+  let skipped = 0
+  for (const isoPath of isoPaths) {
+    let vids = []
+    try { vids = iso.videoFiles(isoPath) } catch (e) { log('videoFiles failed for', isoPath, e); vids = [] }
+    if (!vids.length) log('no video tracks found in', isoPath)
+    const label = path.parse(isoPath).name
+    vids.forEach((v, i) => {
+      const key = isoTrackKey(isoPath, v.extent, v.size)
+      if (key && known.has(key)) { skipped++; return } // already in the library
+      if (key) known.add(key) // also dedup within this import batch
+      const e = ext(v.path) || 'vob'
+      let dest = uniqueDest(dir, `${label}-${String(i + 1).padStart(2, '0')}.${e}`)
+      while (reserved.has(dest)) { const p = path.parse(dest); dest = uniqueDest(dir, `${p.name} (x)${p.ext}`) }
+      reserved.add(dest)
+      jobs.push({ isoPath, v, label, i, dest, key })
+    })
+  }
+  if (skipped) log(`skipped ${skipped} already-imported track(s)`)
+  const total = jobs.length
+  let done = 0
+  for (const job of jobs) {
+    if (signal?.aborted) break
+    try {
+      await iso.extractFile(job.isoPath, job.v.extent, job.v.size, job.dest,
+        (f) => onProgress?.({ index: done, total, name: path.basename(job.dest), fraction: f }))
+      out.push({ name: path.basename(job.dest), path: job.dest, key: job.key })
+    } catch (e) {
+      try { await fsp.unlink(job.dest) } catch { /* not created */ }
+      log('raw extract failed:', job.dest, e)
+      onProgress?.({ index: done, total, name: path.basename(job.v.path), error: String(e && e.message || e) })
+    } finally {
+      done++
+      onProgress?.({ index: done, total, name: `${total - done} track${total - done === 1 ? '' : 's'} left`, fraction: 0 })
+    }
+  }
+  return out
+}
+
+/** Copy picked DVD/VCD video files into the library folder as-is (no convert). */
+async function copyVideosRaw(paths, onProgress, knownKeys) {
+  const known = new Set(knownKeys || [])
+  const out = []
+  const total = paths.length
+  let done = 0
+  for (const src of paths) {
+    try {
+      const key = fileContentKey(src)
+      if (key && known.has(key)) { done++; continue } // already imported
+      if (key) known.add(key)
+      onProgress?.({ index: done, total, name: path.basename(src), fraction: 0 })
+      const entry = await copyIn(src)
+      out.push({ ...entry, key })
+    } catch (e) {
+      onProgress?.({ index: done, total, name: path.basename(src), error: String(e && e.message || e) })
+    } finally { done++ }
+  }
+  return out
+}
+
 /** Transcode picked DVD/VCD video files to MP4 in the library folder. */
 async function transcodeVideos(paths, onProgress, signal) {
   const dir = libraryDir()
@@ -353,7 +443,7 @@ function registerLibraryIpc(getWindow) {
   // Cancel the running import: abort kills ffmpeg and stops the worker loop.
   ipcMain.handle('okara:import-cancel', () => { importAbort?.abort() })
 
-  ipcMain.handle('okara:lib-import-iso', async () => {
+  ipcMain.handle('okara:lib-import-iso', async (_e, knownKeys) => {
     const win = getWindow()
     const res = await dialog.showOpenDialog(win, {
       title: 'Import DVD/VCD disc image (.iso)',
@@ -362,19 +452,21 @@ function registerLibraryIpc(getWindow) {
     })
     if (res.canceled || !res.filePaths.length) return []
     importAbort = new AbortController()
-    return runJob(win, () => importIsos(res.filePaths, (p) => progress(win, p), importAbort.signal))
+    // Raw extract — no conversion; playback streams the file live.
+    return runJob(win, () => importIsosRaw(res.filePaths, (p) => progress(win, p), importAbort.signal, knownKeys))
   })
 
-  ipcMain.handle('okara:lib-import-dvd-video', async () => {
+  ipcMain.handle('okara:lib-import-dvd-video', async (_e, knownKeys) => {
     const win = getWindow()
     const res = await dialog.showOpenDialog(win, {
-      title: 'Import DVD/VCD video files (converted to MP4)',
+      title: 'Import DVD/VCD video files',
       properties: ['openFile', 'multiSelections'],
       filters: [{ name: 'DVD/VCD video', extensions: TRANSCODE_EXT }],
     })
     if (res.canceled || !res.filePaths.length) return []
     importAbort = new AbortController()
-    return runJob(win, () => transcodeVideos(res.filePaths, (p) => progress(win, p), importAbort.signal))
+    // Copy raw — no conversion; playback streams the file live.
+    return runJob(win, () => copyVideosRaw(res.filePaths, (p) => progress(win, p), knownKeys))
   })
 }
 

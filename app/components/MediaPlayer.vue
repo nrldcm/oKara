@@ -66,16 +66,19 @@ function onEnded() {
 
 // Cue-point clip: this song may be one segment of a bigger merged video. Start
 // at clip.startSec and stop at clip.endSec (→ next in queue).
-const clipStart = computed(() => props.song.clip?.startSec ?? 0)
+// For a STREAMED clip the server already starts at the timecode and ends the
+// clip (via -ss/-t), so the player must not also seek/cut — only file clips do.
+const clipStart = computed(() => (props.song.needsStream ? 0 : props.song.clip?.startSec ?? 0))
 function seekToStart() {
   const el = mediaEl.value
-  if (!el) return
+  if (!el || props.song.needsStream) return
   if (clipStart.value > 0) { try { el.currentTime = clipStart.value } catch { /* not seekable yet */ } }
   // For a clip we hold playback until metadata is ready, then start here — so
   // there's no flash of the file's beginning before the seek.
   if (props.autoplay && clipStart.value > 0) el.play().catch(() => {})
 }
 function onTimeUpdate() {
+  if (props.song.needsStream) return
   const end = props.song.clip?.endSec
   const el = mediaEl.value
   if (end != null && el && !advanced && el.currentTime >= end) { el.pause(); onEnded() }
@@ -104,7 +107,26 @@ onMounted(() => {
 // clip (or the same file), jump to the new start time.
 watch(() => props.song.id, () => nextTick(seekToStart))
 
-onBeforeUnmount(() => { offCommand(); ctx?.close().catch(() => {}) })
+// Auto-hiding controls (like a DVD player): the top bar + footer fade out after
+// a few seconds of no mouse movement and reappear when the cursor moves. Click
+// the video to toggle them on demand.
+const controlsVisible = ref(true)
+let hideTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleHide() {
+  if (hideTimer) clearTimeout(hideTimer)
+  hideTimer = setTimeout(() => { controlsVisible.value = false }, 3000)
+}
+function showControls() {
+  controlsVisible.value = true
+  scheduleHide()
+}
+function toggleControls() {
+  controlsVisible.value = !controlsVisible.value
+  if (controlsVisible.value) scheduleHide()
+  else if (hideTimer) clearTimeout(hideTimer)
+}
+onMounted(scheduleHide)
+onBeforeUnmount(() => { offCommand(); ctx?.close().catch(() => {}); if (hideTimer) clearTimeout(hideTimer) })
 
 const channelLabels: Record<string, string> = {
   stereo: 'Original (L+R)',
@@ -114,16 +136,27 @@ const channelLabels: Record<string, string> = {
 </script>
 
 <template>
-  <div class="mplayer">
+  <div class="mplayer" :class="{ 'controls-hidden': !controlsVisible }" @mousemove="showControls">
     <header class="mplayer__bar">
       <button class="icon-btn" @click="emit('close')"><i class="bi bi-arrow-left" /> Back</button>
       <div class="mplayer__title">
         <strong>{{ props.song.title }}</strong>
         <span>{{ props.song.artist }} · {{ props.song.source }}</span>
       </div>
+      <div class="voice">
+        <span class="label">Voice:</span>
+        <div class="segmented">
+          <button
+            v-for="opt in (['stereo', 'left', 'right'] as const)"
+            :key="opt"
+            :class="{ active: channel === opt }"
+            @click="channel = opt"
+          >{{ opt === 'stereo' ? 'On' : opt === 'left' ? 'L' : 'R' }}</button>
+        </div>
+      </div>
     </header>
 
-    <div class="stage">
+    <div class="stage" @click="toggleControls">
       <video v-if="isVideo" ref="mediaEl" :src="props.song.videoUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" @loadedmetadata="seekToStart" @timeupdate="onTimeUpdate" />
       <div v-else class="audio-stage">
         <div class="disc"><i class="bi bi-music-note-beamed" /></div>
@@ -131,48 +164,35 @@ const channelLabels: Record<string, string> = {
       </div>
     </div>
 
-    <footer class="mplayer__controls">
-      <div class="voice">
-        <span class="label">Voice / Minus-one:</span>
-        <div class="segmented">
-          <button
-            v-for="opt in (['stereo', 'left', 'right'] as const)"
-            :key="opt"
-            :class="{ active: channel === opt }"
-            @click="channel = opt"
-          >{{ channelLabels[opt] }}</button>
-        </div>
-      </div>
-      <p class="tip">
-        Tip: if the guide vocals are on one channel, pick "Left" or "Right" for minus-one.
-      </p>
-    </footer>
   </div>
 </template>
 
 <style scoped>
-.mplayer { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
-.mplayer__bar { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
-.mplayer__title { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
-.mplayer__title strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mplayer__title span { font-size: 13px; color: var(--text-muted); }
-.stage { flex: 1; margin: 0 12px; border-radius: 16px; overflow: hidden; background: #000;
-  display: flex; align-items: center; justify-content: center; }
+/* Full-bleed video (fills the window) with an overlay bar that auto-hides. */
+.mplayer { position: relative; height: 100%; background: #000; overflow: hidden; }
+.stage { position: absolute; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; }
 .stage video { width: 100%; height: 100%; object-fit: contain; }
 .audio-stage { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 16px;
   background: radial-gradient(120% 100% at 50% 0%, var(--stage-1) 0%, var(--stage-2) 70%); width: 100%; height: 100%;
   justify-content: center; }
 .disc { font-size: 84px; }
 .audio-stage audio { width: 100%; max-width: 420px; }
-.mplayer__controls { padding: 16px; }
-.voice { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.label { font-size: 14px; color: var(--text-muted); }
-.segmented { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px; }
-.segmented button { border: none; background: none; color: var(--text); padding: 8px 16px; border-radius: 999px;
+.mplayer__bar { position: absolute; top: 0; left: 0; right: 0; z-index: 3; display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; color: #fff; background: linear-gradient(to bottom, rgba(0,0,0,.75), transparent);
+  transition: opacity .3s ease; }
+.mplayer__title { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; flex: 1; }
+.mplayer__title strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mplayer__title span { font-size: 13px; color: rgba(255,255,255,.7); }
+.controls-hidden { cursor: none; }
+.controls-hidden .mplayer__bar { opacity: 0; pointer-events: none; }
+.voice { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.label { font-size: 14px; color: rgba(255,255,255,.8); }
+.segmented { display: inline-flex; background: rgba(255,255,255,.14); border-radius: 999px; padding: 3px; }
+.segmented button { border: none; background: none; color: #fff; padding: 6px 12px; border-radius: 999px;
   cursor: pointer; font-size: 13px; opacity: .7; }
-.segmented button.active { background: var(--accent); color: var(--on-accent); opacity: 1; font-weight: 600; }
-.tip { font-size: 12px; color: var(--text-faint); margin-top: 10px; }
-.icon-btn { background: none; border: none; color: var(--text); cursor: pointer; font-size: 15px; }
+.segmented button.active { background: var(--accent-grad); color: #fff; opacity: 1; font-weight: 600; }
+.icon-btn { background: rgba(255,255,255,.14); border: none; color: #fff; cursor: pointer; font-size: 14px;
+  padding: 8px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
 
 @media (max-width: 560px) {
   .segmented { width: 100%; display: flex; }

@@ -77,13 +77,17 @@ function listFiles(isoPath) {
  * extract at once. The file's data is contiguous (single extent), so the exact
  * byte range [extent*SECTOR, +size) is the file content.
  */
-function extractFile(isoPath, extent, size, destPath) {
+function extractFile(isoPath, extent, size, destPath, onProgress) {
   return new Promise((resolve, reject) => {
     const start = extent * SECTOR
     const end = start + size - 1 // inclusive
     const rs = fs.createReadStream(isoPath, { start, end })
     const ws = fs.createWriteStream(destPath)
     const fail = (e) => { rs.destroy(); ws.destroy(); reject(e) }
+    if (onProgress && size > 0) {
+      let done = 0
+      rs.on('data', (chunk) => { done += chunk.length; onProgress(Math.min(1, done / size)) })
+    }
     rs.on('error', fail)
     ws.on('error', fail)
     ws.on('finish', resolve)

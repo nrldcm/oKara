@@ -11,11 +11,18 @@ const videoEl = ref<HTMLVideoElement | null>(null)
 const cues = ref<Cue[]>([])
 const saving = ref(false)
 const nextNumber = ref<number>(1001)
+// A raw (streamed) source has no direct URL — resolve a live-stream URL of the
+// whole file so it can be played forward and marked. (Scrubbing is limited on a
+// stream; play forward and click "Mark song start" as each song begins.)
+const videoSrc = ref<string | undefined>(props.song.videoUrl)
 
-onMounted(() => {
-  // Suggest sequential numbers starting above the current library max.
+onMounted(async () => {
   const max = library.songs.value.reduce((m, s) => Math.max(m, s.number || 0), 1000)
   nextNumber.value = max + 1
+  if (!videoSrc.value && props.song.needsStream && props.song.videoPath) {
+    const res = await (window as any).okara?.discStream?.({ file: props.song.videoPath })
+    if (res?.url) videoSrc.value = res.url
+  }
 })
 
 function fmt(sec: number) {
@@ -69,7 +76,8 @@ async function save() {
 
       <div class="mapper__body">
         <div class="mapper__video">
-          <video ref="videoEl" :src="props.song.videoUrl" controls />
+          <video ref="videoEl" :src="videoSrc" controls />
+          <p v-if="props.song.needsStream" class="stream-note"><i class="bi bi-info-circle" /> Streamed source — play forward and click “Mark song start” as each song begins (scrubbing back is limited).</p>
           <button class="mark" @click="markHere"><i class="bi bi-bookmark-plus-fill" /> Mark song start (at current time)</button>
         </div>
 
@@ -110,6 +118,7 @@ async function save() {
 .close { border: none; background: var(--surface-2); color: var(--text); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; margin-left: auto; }
 .mapper__body { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; padding: 16px 18px; overflow: auto; }
 .mapper__video video { width: 100%; border-radius: 12px; background: #000; aspect-ratio: 16/9; }
+.stream-note { font-size: 12px; color: var(--text-faint); margin: 8px 0 0; display: flex; gap: 6px; align-items: flex-start; }
 .mark { margin-top: 10px; width: 100%; border: none; background: var(--accent-grad); color: #fff; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .cues__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .empty { color: var(--text-faint); font-size: 13px; }

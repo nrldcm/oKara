@@ -9,6 +9,9 @@ export interface RuntimeSong extends StoredSong {
   audioUrl?: string
   videoUrl?: string
   coverUrl?: string
+  // A raw disc video (VOB/DAT/MPEG…) the browser can't decode — it plays via
+  // the live stream server (transcode-on-the-fly), so videoUrl is set on play.
+  needsStream?: boolean
 }
 
 /** One import candidate: a browser File (web) or an on-disk library file. */
@@ -16,6 +19,7 @@ interface ImportEntry {
   name: string
   file?: File
   path?: string
+  key?: string // content fingerprint (dedup) from a native import
 }
 
 /** Bridge surface provided by Electron preload / the Android shim. */
@@ -61,12 +65,18 @@ function stripExt(name: string): string {
   return baseName(name).replace(/\.[^.]+$/, '')
 }
 
+// Video the browser can play directly (H.264/VP9/AV1 in these containers).
+// Everything else (VOB/DAT/MPEG/AVI/MKV…) is streamed live.
+const WEB_VIDEO_EXT = ['mp4', 'm4v', 'webm', 'ogv']
+
 function toRuntime(song: StoredSong): RuntimeSong {
   const rt: RuntimeSong = { ...song }
   if (song.audioPath) rt.audioUrl = toMediaUrl(song.audioPath)
   else if (song.audio) rt.audioUrl = URL.createObjectURL(song.audio)
-  if (song.videoPath) rt.videoUrl = toMediaUrl(song.videoPath)
-  else if (song.video) rt.videoUrl = URL.createObjectURL(song.video)
+  if (song.videoPath) {
+    if (WEB_VIDEO_EXT.includes(ext(song.videoPath))) rt.videoUrl = toMediaUrl(song.videoPath)
+    else rt.needsStream = true // raw disc video → resolved to a stream URL on play
+  } else if (song.video) rt.videoUrl = URL.createObjectURL(song.video)
   if (song.coverPath) rt.coverUrl = toMediaUrl(song.coverPath)
   else if (song.cover) rt.coverUrl = URL.createObjectURL(song.cover)
   return rt
@@ -155,6 +165,7 @@ async function detectSongs(entries: ImportEntry[], source: SongSource): Promise<
     }
     assign(song, kind === 'video' ? 'video' : 'audio', e)
     if (!song.paths!.length) delete song.paths
+    if (e.key) song.importKey = e.key
     out.push(song)
   }
 
@@ -275,13 +286,19 @@ export function useLibrary() {
   async function importDisc(kind: 'iso' | 'dvd-video', source: SongSource): Promise<number> {
     const lib = bridge() as any
     if (!lib?.importIso) return 0
-    const entries: { name: string; path: string }[] =
-      kind === 'iso' ? await lib.importIso() : await lib.importDvdVideo()
+    // Pass the fingerprints already in the library so the native side skips
+    // re-importing the same disc tracks (no duplicates).
+    const knownKeys = songs.value.map((s) => s.importKey).filter(Boolean) as string[]
+    const entries: ImportEntry[] =
+      kind === 'iso' ? await lib.importIso(knownKeys) : await lib.importDvdVideo(knownKeys)
     if (!entries.length) return 0
     // Filenames already carry the disc name + track number, so no extra label.
     const detected = await detectSongs(entries, source)
-    await store(detected)
-    return detected.length
+    // Belt-and-suspenders: drop any whose fingerprint already exists.
+    const have = new Set(songs.value.map((s) => s.importKey).filter(Boolean))
+    const fresh = detected.filter((s) => !s.importKey || !have.has(s.importKey))
+    if (fresh.length) await store(fresh)
+    return fresh.length
   }
 
   /**
@@ -392,6 +409,18 @@ export function useLibrary() {
     await dbPut(stored)
     songs.value = [...songs.value]
     return null
+  }
+
+  /** Edit a song's songbook details (number/code, title, artist). */
+  async function editMeta(id: string, patch: { number?: number; title?: string; artist?: string }): Promise<void> {
+    const song = songs.value.find((s) => s.id === id)
+    if (!song) return
+    if (patch.title != null) song.title = patch.title.trim() || song.title
+    if (patch.artist != null) song.artist = patch.artist.trim() || song.artist
+    if (patch.number != null && Number.isFinite(patch.number)) song.number = patch.number
+    const { audioUrl, videoUrl, coverUrl, ...stored } = song
+    await dbPut(stored)
+    songs.value = [...songs.value]
   }
 
   function findByNumber(num: number): RuntimeSong | undefined {

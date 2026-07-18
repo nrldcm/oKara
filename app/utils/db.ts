@@ -26,6 +26,9 @@ export interface StoredSong {
   // but its playable MP4 is produced on first play. Cleared once materialized
   // to a real videoPath.
   disc?: { iso?: string; extent?: number; size?: number; file?: string }
+  // Content fingerprint of the imported source (size + head/tail hash), used to
+  // skip re-importing the same disc track — so the library doesn't duplicate.
+  importKey?: string
   // Cue point: this song is a SEGMENT of a bigger video (many songs merged into
   // one file). Playback seeks to startSec and ends at endSec, so one file holds
   // many searchable songs — karaoke-machine style. All clips of a file share

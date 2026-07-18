@@ -65,7 +65,7 @@ export function useImportJob() {
           ? `Import cancelled — ${count} track${count > 1 ? 's' : ''} already converted were kept.`
           : 'Import cancelled.'
       } else if (count > 0) {
-        message.value = `Converted and imported ${count} track${count > 1 ? 's' : ''} into your library.`
+        message.value = `Added ${count} track${count > 1 ? 's' : ''} to your library.`
       } else if (isSpace(lastError.value)) {
         message.value = 'Not enough disk space on your library drive. Free up space (or move the library to a bigger drive in Settings) and try again.'
         failed.value = true

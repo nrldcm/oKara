@@ -148,14 +148,14 @@ function onPick(e: Event) {
     <div v-if="canConvert" class="dvd">
       <h3><i class="bi bi-disc-fill" /> DVD / VCD disc</h3>
       <p class="dvd__lead">
-        Import an old karaoke <strong>disc image (.iso)</strong> or its raw
-        <strong>VOB/DAT</strong> video files — okara extracts and converts them
-        to MP4 so they play here and on the tablet. Conversion runs once per disc
-        and can take a few minutes.
+        Add an old karaoke <strong>disc image (.iso)</strong> or its raw
+        <strong>VOB/DAT</strong> video files to your library — <strong>no
+        conversion</strong>, so it's added quickly. Songs are searchable by
+        number/title/artist and play by streaming on the fly (like a DVD player).
       </p>
       <div class="dvd__btns">
-        <button :disabled="converting" @click="importDisc('iso')"><i class="bi bi-disc" /> Import .iso image</button>
-        <button class="ghost" :disabled="converting" @click="importDisc('dvd-video')"><i class="bi bi-film" /> Import VOB/DAT files</button>
+        <button :disabled="converting" @click="importDisc('iso')"><i class="bi bi-disc" /> Add .iso image</button>
+        <button class="ghost" :disabled="converting" @click="importDisc('dvd-video')"><i class="bi bi-film" /> Add VOB/DAT files</button>
       </div>
       <div v-if="converting" class="conv">
         <div class="conv__bar"><div class="conv__fill" :style="{ width: job.pct.value + '%' }" /></div>

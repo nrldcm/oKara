@@ -2,7 +2,7 @@
 import type { RuntimeSong } from '~/composables/useLibrary'
 
 const props = defineProps<{ songs: RuntimeSong[] }>()
-const emit = defineEmits<{ play: [RuntimeSong]; remove: [string]; renumber: [string, number]; mapCues: [RuntimeSong] }>()
+const emit = defineEmits<{ play: [RuntimeSong]; remove: [string]; renumber: [string, number]; mapCues: [RuntimeSong]; editMeta: [{ id: string; number: number; title: string; artist: string }] }>()
 
 const query = ref('')
 type Field = 'all' | 'number' | 'title' | 'artist'
@@ -40,6 +40,18 @@ function editNumber(s: RuntimeSong) {
   if (!Number.isInteger(n) || n < 1 || n > 99999999) return
   emit('renumber', s.id, n)
 }
+
+// Label a song from the songbook: number/code, title, artist.
+function editDetails(s: RuntimeSong) {
+  const numStr = window.prompt('Number / code (from your songbook):', String(s.number))
+  if (numStr == null) return
+  const title = window.prompt('Song title:', s.title)
+  if (title == null) return
+  const artist = window.prompt('Artist:', s.artist)
+  if (artist == null) return
+  const number = parseInt(numStr.trim(), 10)
+  emit('editMeta', { id: s.id, number: Number.isFinite(number) ? number : s.number, title, artist })
+}
 </script>
 
 <template>
@@ -71,6 +83,7 @@ function editNumber(s: RuntimeSong) {
           <span class="thumb__badge" :class="{ score: s.hasScoring }">{{ badge(s) }}</span>
           <button class="thumb__num" title="Edit song number" @click.stop="editNumber(s)">#{{ s.number }} <i class="bi bi-pencil-fill" /></button>
           <button v-if="s.kind === 'video' && !s.clip && s.videoPath" class="map" title="Map songs inside this video" @click.stop="emit('mapCues', s)"><i class="bi bi-scissors" /></button>
+          <button class="edit" title="Edit number / title / artist" @click.stop="editDetails(s)"><i class="bi bi-pencil-fill" /></button>
           <button class="del" title="Remove" @click.stop="emit('remove', s.id)"><i class="bi bi-x-lg" /></button>
         </div>
         <div class="meta">
@@ -117,6 +130,9 @@ function editNumber(s: RuntimeSong) {
 .map { position: absolute; top: 6px; right: 38px; width: 26px; height: 26px; border-radius: 50%; border: none;
   background: rgba(0, 0, 0, .55); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s; font-size: 12px; }
 .card:hover .map { opacity: 1; }
+.edit { position: absolute; top: 6px; left: 6px; width: 26px; height: 26px; border-radius: 50%; border: none;
+  background: rgba(0, 0, 0, .55); color: #fff; cursor: pointer; opacity: 0; transition: opacity .15s; font-size: 11px; }
+.card:hover .edit { opacity: 1; }
 .meta { padding: 10px 4px; display: flex; flex-direction: column; line-height: 1.3; }
 .meta strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meta span { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -126,6 +142,6 @@ function editNumber(s: RuntimeSong) {
   .lib__head h1 { font-size: 22px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
   .thumb__icon { font-size: 34px; }
-  .del, .map { opacity: 1; }
+  .del, .map, .edit { opacity: 1; }
 }
 </style>

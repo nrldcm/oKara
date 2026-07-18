@@ -13,6 +13,33 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.22] - 2026-07-18
+
+### Changed
+
+- **Import no longer converts** — adding a disc/`.iso` now copies the raw
+  DVD/VCD video (VOB/DAT) into your library **as-is** (fast, no waiting).
+  Playback transcodes on the fly (streams), so it behaves like a DVD player.
+  One big library, many discs (MegaVision/Platinum/…) mixed together.
+- **No duplicate imports** — okara fingerprints each track (size + head/tail
+  hash) and **skips re-importing the same track**, even if the file was
+  renamed. Re-inserting a disc you already added adds nothing new.
+
+### Added
+
+- **Searchable disc songbook.** Every card has an **✏️ edit** button to set the
+  **number/code, title, and artist** from your paper songbook — then the song is
+  searchable by number/title/artist on the host and the phone remote (dial the
+  code like a karaoke machine).
+- **Dial a code → jump to the song** even inside one big merged video. Map cue
+  points (✂️), and each mapped song **streams straight from its timecode** (the
+  transcoder seeks to the exact spot), so entering `102375` jumps right to that
+  song. Mapping now works on streamed sources too (play forward and mark).
+- **Full-bleed playback with auto-hiding controls** — video fills the window;
+  the top bar (Back, title, Voice L/R/On) **fades out after a few seconds** of
+  no mouse movement and reappears when you move the cursor. Click the video to
+  toggle it.
+
 ## [0.9.21] - 2026-07-18
 
 ### Added
@@ -551,7 +578,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.21...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.22...HEAD
+[0.9.22]: https://github.com/nrldcm/okara/compare/v0.9.21...v0.9.22
 [0.9.21]: https://github.com/nrldcm/okara/compare/v0.9.20...v0.9.21
 [0.9.20]: https://github.com/nrldcm/okara/compare/v0.9.19...v0.9.20
 [0.9.19]: https://github.com/nrldcm/okara/compare/v0.9.18...v0.9.19

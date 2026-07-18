@@ -70,20 +70,28 @@ function startMediaServer(getAllowedRoots) {
 
 // ffmpeg args to live-transcode DVD/VCD program streams → fragmented MP4 on
 // stdout, fast enough for real-time (ultrafast/zerolatency) and deinterlaced.
-function streamArgs(inputArg) {
-  return [
-    '-hide_banner', '-loglevel', 'error',
+// `seek` (seconds) jumps to a song's start (input seeking, fast — used to dial
+// a code straight to its position); `dur` (seconds) limits it to one song so
+// the clip ends at the next song's start.
+function streamArgs(inputArg, seek, dur) {
+  const args = ['-hide_banner', '-loglevel', 'error']
+  if (seek > 0) args.push('-ss', String(seek)) // input seeking (before -i) = fast
+  args.push(
     '-probesize', '50M', '-analyzeduration', '100M',
     '-fflags', '+genpts+igndts+discardcorrupt', '-err_detect', 'ignore_err',
     '-i', inputArg,
     '-filter_complex', '[0:v:0]bwdif=mode=send_frame[v]',
     '-map', '[v]', '-map', '0:a:0?',
+  )
+  if (dur > 0) args.push('-t', String(dur))
+  args.push(
     '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-crf', '23', '-pix_fmt', 'yuv420p',
     '-g', '48', '-keyint_min', '48', '-sc_threshold', '0',
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2',
     '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', '-frag_duration', '500000',
     'pipe:1',
-  ]
+  )
+  return args
 }
 
 function startStreamServer(getAllowedRoots) {
@@ -98,6 +106,8 @@ function startStreamServer(getAllowedRoots) {
     const iso = url.searchParams.get('iso')
     const extent = parseInt(url.searchParams.get('extent') || '0', 10)
     const size = parseInt(url.searchParams.get('size') || '0', 10)
+    const seek = parseFloat(url.searchParams.get('seek') || '0') || 0
+    const dur = parseFloat(url.searchParams.get('dur') || '0') || 0
     const src = iso || file
     const roots = getAllowedRoots()
     if (!src || !roots.some((r) => path.resolve(src).startsWith(path.resolve(r)))) {
@@ -105,9 +115,9 @@ function startStreamServer(getAllowedRoots) {
     }
 
     // ISO track → feed the extent byte range to ffmpeg stdin; disc/plain file →
-    // read directly by path.
+    // read directly by path. (Seeking only applies to file inputs.)
     let stdin = null
-    const ff = spawn(ffmpegPath(), streamArgs(iso ? 'pipe:0' : file))
+    const ff = spawn(ffmpegPath(), streamArgs(iso ? 'pipe:0' : file, iso ? 0 : seek, dur))
     if (iso) {
       stdin = fs.createReadStream(iso, { start: extent * SECTOR, end: extent * SECTOR + size - 1 })
       stdin.on('error', () => {})
@@ -138,9 +148,13 @@ function startStreamServer(getAllowedRoots) {
       resolve({
         token,
         port,
-        streamUrl: (s) => s && s.iso
-          ? `http://127.0.0.1:${port}/stream?t=${token}&iso=${encodeURIComponent(s.iso)}&extent=${s.extent}&size=${s.size}`
-          : `http://127.0.0.1:${port}/stream?t=${token}&path=${encodeURIComponent(s.file)}`,
+        streamUrl: (s) => {
+          if (s && s.iso) return `http://127.0.0.1:${port}/stream?t=${token}&iso=${encodeURIComponent(s.iso)}&extent=${s.extent}&size=${s.size}`
+          const q = [`t=${token}`, `path=${encodeURIComponent(s.file)}`]
+          if (s.seek > 0) q.push(`seek=${s.seek}`)
+          if (s.dur > 0) q.push(`dur=${s.dur}`)
+          return `http://127.0.0.1:${port}/stream?${q.join('&')}`
+        },
         close: () => server.close(),
       })
     })

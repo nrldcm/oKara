@@ -52,6 +52,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 // A disc/ISO library song has no MP4 yet — produce it (transcode to the
 // library folder, permanent) on first play, then it plays like any song.
 async function resolvePlayable(song: RuntimeSong): Promise<RuntimeSong | null> {
+  const okaraS = (window as any).okara
+  // Raw disc video (VOB/DAT/MPEG…) imported without converting — play it via
+  // the live stream server (transcode-on-the-fly). A cue song streams straight
+  // from its timecode (dial a code → jump to that song). Fresh URL every time.
+  if (song?.needsStream && song.videoPath && okaraS?.discStream) {
+    const src: any = { file: song.videoPath }
+    if (song.clip) {
+      src.seek = song.clip.startSec
+      if (song.clip.endSec != null) src.dur = Math.max(1, song.clip.endSec - song.clip.startSec)
+    }
+    const res = await okaraS.discStream(src)
+    if (res?.url) { song.videoUrl = res.url; return song }
+    prepError.value = res?.error || 'Could not start playback.'
+    return null
+  }
   if (!song?.disc || song.videoUrl) return song
   const okara = (window as any).okara
   if (!okara?.discMaterialize && !okara?.discPrepare) {
@@ -345,7 +360,7 @@ async function onClear() {
 
     <main class="content">
       <div class="content__inner">
-        <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" />
+        <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" @edit-meta="(p) => library.editMeta(p.id, p)" />
         <SettingsView v-else @clear="onClear" />
       </div>
     </main>
