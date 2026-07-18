@@ -94,6 +94,10 @@
   .songs { width: 100%; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
   .song-search { width: 100%; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
     background: var(--surface); color: var(--text); font-size: 15px; }
+  .song-fields { display: flex; gap: 6px; }
+  .song-field { flex: 1; padding: 7px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); cursor: pointer; font-size: 13px; }
+  .song-field.active { background: var(--accent1); color: #fff; border-color: var(--accent1); }
   .song-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
   .sg-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 8px 10px; }
@@ -155,6 +159,7 @@
 
   <div id="songsTab" class="songs hidden">
     <input id="songSearch" class="song-search" type="search" placeholder="Search number, song, or artist…" />
+    <div class="song-fields" id="songFields"></div>
     <div id="songList" class="song-list"></div>
   </div>
 
@@ -257,7 +262,29 @@
   // ---- Songs tab: searchable songbook synced from the host ----
   var songBook = []
   var SONG_LIMIT = 80
+  var songField = 'all'
   document.getElementById('songSearch').addEventListener('input', renderSongs)
+  ;[['all','All'],['number','No.'],['title','Title'],['artist','Artist']].forEach(function (f) {
+    var b = document.createElement('button')
+    b.className = 'song-field' + (f[0] === 'all' ? ' active' : '')
+    b.textContent = f[1]
+    b.setAttribute('data-field', f[0])
+    b.onclick = function () {
+      songField = f[0]
+      document.querySelectorAll('#songFields .song-field').forEach(function (x) {
+        x.className = 'song-field' + (x.getAttribute('data-field') === songField ? ' active' : '')
+      })
+      renderSongs()
+    }
+    document.getElementById('songFields').appendChild(b)
+  })
+
+  function songMatch(s, q) {
+    if (songField === 'number') return String(s.n).indexOf(q) !== -1
+    if (songField === 'title') return s.t.toLowerCase().indexOf(q) !== -1
+    if (songField === 'artist') return s.a.toLowerCase().indexOf(q) !== -1
+    return (s.n + ' ' + s.t + ' ' + s.a).toLowerCase().indexOf(q) !== -1
+  }
 
   function renderSongs() {
     if (tab !== 'songs') return
@@ -267,9 +294,7 @@
       listEl.innerHTML = '<p class="sg-note">Song list not received yet…</p>'
       return
     }
-    var matches = q
-      ? songBook.filter(function (s) { return (s.n + ' ' + s.t + ' ' + s.a).toLowerCase().indexOf(q) !== -1 })
-      : songBook
+    var matches = q ? songBook.filter(function (s) { return songMatch(s, q) }) : songBook
     listEl.innerHTML = ''
     matches.slice(0, SONG_LIMIT).forEach(function (s) {
       var row = document.createElement('div')

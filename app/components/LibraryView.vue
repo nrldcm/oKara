@@ -5,11 +5,24 @@ const props = defineProps<{ songs: RuntimeSong[] }>()
 const emit = defineEmits<{ play: [RuntimeSong]; remove: [string]; renumber: [string, number] }>()
 
 const query = ref('')
+type Field = 'all' | 'number' | 'title' | 'artist'
+const field = ref<Field>('all')
+const FIELDS: { value: Field; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'number', label: 'No.' },
+  { value: 'title', label: 'Title' },
+  { value: 'artist', label: 'Artist' },
+]
+
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return props.songs
-  return props.songs.filter((s) =>
-    `${s.number} ${s.title} ${s.artist} ${s.source}`.toLowerCase().includes(q))
+  return props.songs.filter((s) => {
+    if (field.value === 'number') return String(s.number).includes(q)
+    if (field.value === 'title') return s.title.toLowerCase().includes(q)
+    if (field.value === 'artist') return s.artist.toLowerCase().includes(q)
+    return `${s.number} ${s.title} ${s.artist} ${s.source}`.toLowerCase().includes(q)
+  })
 })
 
 const badge = (s: RuntimeSong) =>
@@ -29,7 +42,18 @@ function editNumber(s: RuntimeSong) {
   <section class="lib">
     <div class="lib__head">
       <h1>Library</h1>
-      <input v-model="query" class="search" placeholder="Search number, song, or artist…" />
+      <input
+        v-model="query" class="search"
+        :placeholder="field === 'number' ? 'Search by number…' : field === 'artist' ? 'Search by artist…' : field === 'title' ? 'Search by title…' : 'Search number, title, or artist…'"
+      />
+    </div>
+    <div class="filters">
+      <button
+        v-for="f in FIELDS" :key="f.value"
+        class="filter" :class="{ active: field === f.value }"
+        @click="field = f.value"
+      >{{ f.label }}</button>
+      <span class="filters__count">{{ filtered.length }} song{{ filtered.length === 1 ? '' : 's' }}</span>
     </div>
 
     <p v-if="!filtered.length" class="empty">
@@ -61,6 +85,11 @@ function editNumber(s: RuntimeSong) {
 .search { flex: 1; min-width: 180px; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font-size: 15px; }
 .search::placeholder { color: var(--text-faint); }
+.filters { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.filter { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); cursor: pointer; font-size: 13px; }
+.filter.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+.filters__count { margin-left: auto; font-size: 12px; color: var(--text-faint); }
 .empty { opacity: .6; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px; }
 .card { cursor: pointer; }

@@ -13,6 +13,15 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.3] - 2026-07-18
+
+### Added
+
+- **Advanced search fields** — the host Library and the remote's Songs tab now
+  have **All / No. / Title / Artist** filter chips next to the search box, so you
+  can search by a specific field (e.g. artist only) instead of just the combined
+  match. Converted DVD/VCD tracks are searchable and numbered like any song.
+
 ## [0.9.2] - 2026-07-18
 
 ### Changed
@@ -260,7 +269,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/nrldcm/okara/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/nrldcm/okara/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/nrldcm/okara/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/nrldcm/okara/compare/v0.8.2...v0.9.0

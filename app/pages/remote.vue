@@ -20,12 +20,24 @@ const tab = ref<'remote' | 'songs' | 'queue' | 'mic'>('remote')
 interface SongEntry { n: number; t: string; a: string }
 const songs = ref<SongEntry[]>([])
 const songQuery = ref('')
+type SongField = 'all' | 'number' | 'title' | 'artist'
+const songField = ref<SongField>('all')
+const SONG_FIELDS: { value: SongField; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'number', label: 'No.' },
+  { value: 'title', label: 'Title' },
+  { value: 'artist', label: 'Artist' },
+]
 const SONG_LIMIT = 100
 const songResults = computed(() => {
   const q = songQuery.value.trim().toLowerCase()
-  const all = q
-    ? songs.value.filter((s) => `${s.n} ${s.t} ${s.a}`.toLowerCase().includes(q))
-    : songs.value
+  const match = (s: SongEntry) => {
+    if (songField.value === 'number') return String(s.n).includes(q)
+    if (songField.value === 'title') return s.t.toLowerCase().includes(q)
+    if (songField.value === 'artist') return s.a.toLowerCase().includes(q)
+    return `${s.n} ${s.t} ${s.a}`.toLowerCase().includes(q)
+  }
+  const all = q ? songs.value.filter(match) : songs.value
   return { list: all.slice(0, SONG_LIMIT), total: all.length }
 })
 
@@ -152,6 +164,13 @@ function doRemove(i: number) { cmd('reserve-remove', i); confirmIdx.value = null
 
     <template v-else-if="tab === 'songs'">
       <input v-model="songQuery" class="song-search" type="search" placeholder="Search number, song, or artist…" />
+      <div class="song-fields">
+        <button
+          v-for="f in SONG_FIELDS" :key="f.value"
+          class="song-field" :class="{ active: songField === f.value }"
+          @click="songField = f.value"
+        >{{ f.label }}</button>
+      </div>
       <div class="song-list">
         <p v-if="!songs.length" class="sg-note">Song list not received yet…</p>
         <p v-else-if="!songResults.list.length" class="sg-note">No songs match.</p>
@@ -324,6 +343,10 @@ h1 { font-size: 20px; margin: 0; }
 .fx-slider input { width: 100%; accent-color: var(--accent); }
 .song-search { width: 100%; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font-size: 15px; }
+.song-fields { display: flex; gap: 6px; width: 100%; }
+.song-field { flex: 1; padding: 7px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); cursor: pointer; font-size: 13px; }
+.song-field.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
 .song-list { width: 100%; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
 .sg-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border);
   border-radius: 12px; padding: 8px 10px; }
