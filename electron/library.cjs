@@ -26,20 +26,32 @@ function writeConfig(cfg) {
   fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2))
 }
 
-function libraryDir() {
+// The user picks ONE base directory; okara creates two folders inside it — a
+// "Library" folder for songs and a "Temp" folder for temporary files (ISO
+// extraction, prepared clips). Keeping temp beside the library (same drive)
+// means the system drive (C:) never bloats. `baseDir` is the picked directory;
+// `libraryDir` (legacy) is a directly-chosen songs folder from older versions.
+function baseDir() {
   const cfg = readConfig()
-  const fallback = path.join(app.getPath('music'), 'okara-library')
-  const dir = cfg.libraryDir || fallback
-  try {
-    fs.mkdirSync(dir, { recursive: true })
-    return dir
-  } catch (e) {
-    // A stale configured path (a removed drive letter, a perms-denied or UNC
-    // folder) must not break every import — fall back to the default folder.
-    log('libraryDir not writable, using default:', dir, e)
+  return cfg.baseDir || null
+}
+
+function ensureDir(dir, fallback) {
+  try { fs.mkdirSync(dir, { recursive: true }); return dir }
+  catch (e) {
+    log('dir not writable, using default:', dir, e)
     fs.mkdirSync(fallback, { recursive: true })
     return fallback
   }
+}
+
+function libraryDir() {
+  const cfg = readConfig()
+  const fallback = path.join(app.getPath('music'), 'okara', 'Library')
+  const dir = cfg.baseDir ? path.join(cfg.baseDir, 'Library')
+    : cfg.libraryDir ? cfg.libraryDir // legacy: songs directly in a chosen folder
+    : path.join(app.getPath('music'), 'okara-library') // legacy default
+  return ensureDir(dir, fallback)
 }
 
 /** Copy src into the library dir, renaming on collision ("song (2).mp4"). */
@@ -68,13 +80,21 @@ async function walkFiles(dir) {
   return out
 }
 
-// A scratch folder on the SAME drive as the library, for extracting ISO tracks
-// before transcoding — so extraction doesn't fill the system drive (C:) when
-// the library lives on another drive (D:). Hidden (dot-prefixed) so the song
-// scan skips it.
+// Mark a folder hidden on Windows (dot-prefix already hides it on macOS/Linux
+// and keeps it out of the song scan; Windows needs the hidden attribute too).
+function hideDir(dir) {
+  if (process.platform !== 'win32') return
+  try { require('child_process').execFile('attrib', ['+h', dir]) } catch { /* best effort */ }
+}
+
+// A hidden `.okara-tmp` temp folder beside the library (same drive), for
+// extracting ISO tracks and prepared clips — so extraction never fills the
+// system drive (C:). With a picked base directory it is `<base>/.okara-tmp`;
+// otherwise `.okara-tmp` inside the (legacy/default) library folder.
 function libraryTemp() {
-  const dir = path.join(libraryDir(), '.okara-tmp')
-  try { fs.mkdirSync(dir, { recursive: true }) } catch { /* falls back below */ }
+  const base = baseDir()
+  const dir = base ? path.join(base, '.okara-tmp') : path.join(libraryDir(), '.okara-tmp')
+  try { fs.mkdirSync(dir, { recursive: true }); hideDir(dir) } catch { /* falls back below */ }
   return fs.existsSync(dir) ? dir : os.tmpdir()
 }
 
@@ -220,13 +240,16 @@ function registerLibraryIpc(getWindow) {
 
   ipcMain.handle('okara:lib-choose-dir', async () => {
     const res = await dialog.showOpenDialog(getWindow(), {
-      title: 'Choose the okara library folder',
+      title: 'Choose a folder for okara (a Library folder is made inside it)',
       properties: ['openDirectory', 'createDirectory'],
-      defaultPath: libraryDir(),
+      defaultPath: baseDir() || path.dirname(libraryDir()),
     })
     if (res.canceled || !res.filePaths[0]) return null
     const cfg = readConfig()
-    cfg.libraryDir = res.filePaths[0]
+    // Switch to the base-directory model: songs go in <base>/Library and temp
+    // files in <base>/.okara-tmp. Drop any legacy direct libraryDir.
+    cfg.baseDir = res.filePaths[0]
+    delete cfg.libraryDir
     writeConfig(cfg)
     return { dir: libraryDir() }
   })

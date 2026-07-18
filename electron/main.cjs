@@ -72,7 +72,7 @@ async function createWindow() {
   })
 
   remote = await startRemote(readConfig().remotePort)
-  streamer = await startMediaServer(() => [os.tmpdir(), libraryDir(), ...allowedSources])
+  streamer = await startMediaServer(() => [os.tmpdir(), libraryDir(), libraryTemp(), ...allowedSources])
   // Clear leftover scratch files from a previous run (nothing is in use yet at
   // launch), so temp extractions/prepared clips don't pile up on the drive.
   try {

@@ -13,6 +13,17 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.14] - 2026-07-18
+
+### Changed
+
+- **Choosing a library location now uses one base folder** — pick a directory
+  and okara creates a **`Library`** folder (your songs) and a hidden
+  **`.okara-tmp`** folder (temporary files) inside it, both on the same drive.
+  The temp folder is hidden (and marked hidden on Windows) and is **never
+  scanned or read as part of your library**, so it stays out of your song list.
+  Existing library folders keep working unchanged.
+
 ## [0.9.13] - 2026-07-18
 
 ### Fixed
@@ -428,7 +439,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.13...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.14...HEAD
+[0.9.14]: https://github.com/nrldcm/okara/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/nrldcm/okara/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/nrldcm/okara/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/nrldcm/okara/compare/v0.9.10...v0.9.11
