@@ -4,7 +4,7 @@ const path = require('path')
 const fs = require('fs')
 const { startRemoteServer } = require('./server.cjs')
 const { registerLibraryIpc, readConfig, writeConfig, libraryDir, libraryTemp, uniqueDest } = require('./library.cjs')
-const { startMediaServer } = require('./stream.cjs')
+const { startMediaServer, startStreamServer } = require('./stream.cjs')
 const isoLib = require('./iso.cjs')
 const { transcode } = require('./transcode.cjs')
 const { log, logPath } = require('./log.cjs')
@@ -18,6 +18,7 @@ process.on('unhandledRejection', (reason) => { log('unhandledRejection:', reason
 let win = null
 let remote = null
 let streamer = null
+let liveStreamer = null // live disc/ISO transcode-stream (instant play)
 // Sources the user explicitly opened for "play from disc/ISO" — allowed for
 // the local transcode-stream server.
 const allowedSources = new Set()
@@ -72,7 +73,9 @@ async function createWindow() {
   })
 
   remote = await startRemote(readConfig().remotePort)
-  streamer = await startMediaServer(() => [os.tmpdir(), libraryDir(), libraryTemp(), ...allowedSources])
+  const allowedRoots = () => [os.tmpdir(), libraryDir(), libraryTemp(), ...allowedSources]
+  streamer = await startMediaServer(allowedRoots)
+  liveStreamer = await startStreamServer(allowedRoots)
   // Clear leftover scratch files from a previous run (nothing is in use yet at
   // launch), so temp extractions/prepared clips don't pile up on the drive.
   try {
@@ -172,6 +175,18 @@ function pollDiscs() {
   }
   knownDiscs = roots
 }
+
+// Instant play: return a live-transcode stream URL for a disc/ISO track. The
+// <video> starts playing within ~1–2s (no file written), like inserting a disc
+// in a hardware karaoke player.
+ipcMain.handle('okara:disc-stream', (_e, srcArg) => {
+  const src = srcArg || {}
+  // Make sure the source is allowed by the stream server (disc roots + picked
+  // ISOs are added to allowedSources when detected/opened).
+  if (src.file) allowedSources.add(path.resolve(src.file))
+  if (src.iso) allowedSources.add(path.resolve(src.iso))
+  return { url: liveStreamer.streamUrl(src) }
+})
 
 ipcMain.handle('okara:disc-pick', async (_e, kind) => {
   const isIso = kind === 'iso'

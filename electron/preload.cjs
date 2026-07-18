@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('okara', {
   // discPrepare transcodes a track's src to a temp MP4 and returns { url } to
   // play (or { error }), reporting progress on onDiscProgress.
   discPick: (kind) => ipcRenderer.invoke('okara:disc-pick', kind),
+  // Instant streaming play (no convert/wait) — returns { url } for a <video>.
+  discStream: (src) => ipcRenderer.invoke('okara:disc-stream', src),
   discPrepare: (src) => ipcRenderer.invoke('okara:disc-prepare', src),
   // Transcode a disc/ISO track into the library folder (permanent) and return
   // { path } — used the first time a disc-ref library song is played.

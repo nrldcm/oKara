@@ -13,6 +13,19 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.21] - 2026-07-18
+
+### Added
+
+- **Instant disc / ISO playback — like a hardware DVD player.** A new **Disc**
+  button (top bar) plays a disc or `.iso` **immediately** (~1–2 seconds), with
+  **no importing and no waiting**: the track is transcoded live and streamed to
+  the player as it goes. Insert a disc and the player pops up with its tracks
+  automatically. Voice on/off and scoring still work (it plays through okara's
+  normal player). Nothing is saved to disk — for a permanent, searchable,
+  seekable copy, use **Import** instead. The old datamosh is gone: the live
+  stream now uses clean fragmented-MP4 output with regular keyframes.
+
 ## [0.9.20] - 2026-07-18
 
 ### Added
@@ -538,7 +551,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.20...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.21...HEAD
+[0.9.21]: https://github.com/nrldcm/okara/compare/v0.9.20...v0.9.21
 [0.9.20]: https://github.com/nrldcm/okara/compare/v0.9.19...v0.9.20
 [0.9.19]: https://github.com/nrldcm/okara/compare/v0.9.18...v0.9.19
 [0.9.18]: https://github.com/nrldcm/okara/compare/v0.9.17...v0.9.18

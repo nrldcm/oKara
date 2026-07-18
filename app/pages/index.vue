@@ -35,6 +35,10 @@ onMounted(async () => {
   // When a background conversion finishes, pick up the new MP4s (covers a
   // refresh that happened mid-conversion).
   ;(window as any).okara?.library?.onImportDone?.(() => library.rescan())
+  // Insert a disc → pop the player with its tracks, like a hardware DVD player.
+  ;(window as any).okara?.onDiscInserted?.((d: any) => {
+    if (d?.tracks?.length) { discList.value = { label: d.label, tracks: d.tracks }; showDisc.value = true }
+  })
   window.addEventListener('keydown', onKeydown)
   await library.load()
   restoreQueue() // bring back a queue left over from a previous close/crash
@@ -215,6 +219,34 @@ function onMapped(n: number) {
   bus.flash(`Mapped ${n} song${n === 1 ? '' : 's'} — searchable now`)
 }
 
+// Instant disc/ISO player — streams a track live (like a hardware DVD player),
+// no convert and no saved file.
+const showDisc = ref(false)
+const discList = ref<{ label: string; tracks: { title: string; src: unknown }[] } | null>(null)
+const discMsg = ref('')
+async function scanDisc() {
+  discMsg.value = 'Scanning drives…'
+  const list = (await (window as any).okara?.detectDiscs?.()) || []
+  if (list[0]?.tracks?.length) { discList.value = { label: list[0].label, tracks: list[0].tracks }; discMsg.value = '' }
+  else discMsg.value = 'No DVD/VCD disc found in a drive.'
+}
+async function openDisc(kind: 'iso' | 'folder') {
+  discMsg.value = ''
+  const r = await (window as any).okara?.discPick?.(kind)
+  if (r?.tracks?.length) discList.value = { label: r.label, tracks: r.tracks }
+  else if (r) discMsg.value = 'No playable video tracks found.'
+}
+async function playDiscTrack(track: { title: string; src: unknown }) {
+  const res = await (window as any).okara?.discStream?.(track.src)
+  if (!res?.url) { discMsg.value = res?.error || 'Could not start playback.'; return }
+  showDisc.value = false
+  queue.value = []
+  nowPlaying.value = {
+    id: `disc-${Date.now()}`, number: 0, title: track.title, artist: 'Disc',
+    kind: 'video', source: 'Other', hasScoring: false, createdAt: Date.now(), videoUrl: res.url,
+  } as RuntimeSong
+}
+
 // Mirror the mic/soundboard settings into the remote state so the phone's
 // Mic tab always shows what the host is using.
 watch(() => settings.value.fx, (fx) => {
@@ -287,6 +319,9 @@ async function onClear() {
         <button v-if="importJob.active.value" class="pill converting" title="Importing — click to view" @click="view = 'settings'">
           <i class="bi bi-arrow-repeat spin" /><span class="pill__label"> Importing {{ importJob.pct.value }}%</span>
         </button>
+        <button class="pill" title="Play a disc / ISO" @click="showDisc = true">
+          <i class="bi bi-disc-fill" /><span class="pill__label"> Disc</span>
+        </button>
         <button v-if="remote.available.value" class="pill" @click="showRemoteModal = true">
           <i class="bi bi-phone-fill" /><span class="pill__label"> Remote</span>
         </button>
@@ -336,6 +371,30 @@ async function onClear() {
     <p v-if="prepError" class="prep-error">{{ prepError }}</p>
 
     <SongMapper v-if="mapperSong" :song="mapperSong" @close="mapperSong = null" @saved="onMapped" />
+
+    <Teleport to="body">
+      <div v-if="showDisc" class="disc-modal-backdrop" @click.self="showDisc = false; discList = null">
+        <div class="disc-modal">
+          <button class="disc-modal__close" @click="showDisc = false; discList = null"><i class="bi bi-x-lg" /></button>
+          <h3><i class="bi bi-disc-fill" /> Play a disc / ISO</h3>
+          <p class="disc-modal__lead">Plays instantly like a DVD player — no importing, no waiting.</p>
+          <div class="disc-modal__btns">
+            <button class="grad" @click="scanDisc"><i class="bi bi-disc-fill" /> Scan inserted disc</button>
+            <button @click="openDisc('iso')"><i class="bi bi-disc" /> Open .iso</button>
+            <button @click="openDisc('folder')"><i class="bi bi-folder2-open" /> Open disc folder</button>
+          </div>
+          <p v-if="discMsg" class="disc-modal__msg">{{ discMsg }}</p>
+          <div v-if="discList" class="disc-tracks">
+            <p class="disc-tracks__label">{{ discList.label }} — {{ discList.tracks.length }} track{{ discList.tracks.length === 1 ? '' : 's' }}</p>
+            <div v-for="(t, i) in discList.tracks" :key="i" class="disc-track" @click="playDiscTrack(t)">
+              <span class="disc-track__no">{{ i + 1 }}</span>
+              <strong class="disc-track__title">{{ t.title }}</strong>
+              <span class="disc-track__play"><i class="bi bi-play-fill" /> Play</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <div v-if="nowPlaying" class="stage-overlay">
       <KaraokePlayer v-if="nowPlaying.kind === 'ultrastar'" :key="nowPlaying.id" :song="nowPlaying" @close="stop" @ended="onEnded" />
@@ -405,6 +464,28 @@ async function onClear() {
   box-shadow: 0 20px 60px rgba(0,0,0,.4); }
 .remote-modal__close { position: absolute; top: 12px; right: 14px; border: none; background: none;
   color: var(--text-muted); font-size: 18px; cursor: pointer; z-index: 1; }
+.disc-modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.disc-modal { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px; width: 100%; max-width: 520px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow); }
+.disc-modal__close { position: absolute; top: 12px; right: 14px; border: none; background: none;
+  color: var(--text-muted); font-size: 18px; cursor: pointer; }
+.disc-modal h3 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+.disc-modal__lead { color: var(--text-muted); font-size: 13px; margin: 0 0 16px; }
+.disc-modal__btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.disc-modal__btns button { padding: 10px 16px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 14px;
+  display: inline-flex; align-items: center; gap: 8px; }
+.disc-modal__msg { margin: 12px 0 0; font-size: 13px; color: var(--text-muted); }
+.disc-tracks { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.disc-tracks__label { font-size: 12px; color: var(--text-faint); margin: 0 0 4px; }
+.disc-track { display: flex; align-items: center; gap: 12px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 14px; cursor: pointer; }
+.disc-track:hover { border-color: var(--accent); }
+.disc-track__no { width: 26px; text-align: center; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.disc-track__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.disc-track__play { background: var(--accent-grad); color: #fff; border-radius: 999px; padding: 5px 12px;
+  font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
 
 @media (max-width: 560px) {
   .topbar { gap: 10px; padding: 10px 14px; }
