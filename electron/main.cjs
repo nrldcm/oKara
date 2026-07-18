@@ -210,7 +210,7 @@ ipcMain.handle('okara:disc-prepare', async (_e, srcArg) => {
   try {
     if (src.iso) {
       input = tmpBase + '.' + (isoLib.VIDEO_EXT.find((e) => true) || 'vob')
-      isoLib.extractFile(src.iso, src.extent, src.size, input)
+      await isoLib.extractFile(src.iso, src.extent, src.size, input)
     }
     if (!input || !fs.existsSync(input)) throw new Error('Track not found')
     const out = tmpBase + '.mp4'
@@ -236,7 +236,7 @@ ipcMain.handle('okara:disc-materialize', async (_e, srcArg, title) => {
     let input = src.file
     if (src.iso) {
       tmp = path.join(libraryTemp(), `okara-mat-${Date.now()}-${discTmpCount++}.vob`)
-      isoLib.extractFile(src.iso, src.extent, src.size, tmp)
+      await isoLib.extractFile(src.iso, src.extent, src.size, tmp)
       input = tmp
     }
     if (!input || !fs.existsSync(input)) throw new Error('Track not found')

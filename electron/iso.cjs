@@ -70,25 +70,25 @@ function listFiles(isoPath) {
   }
 }
 
-/** Copy one file out of the ISO to destPath, streaming sector by sector. */
+/**
+ * Copy one file out of the ISO to destPath. Returns a Promise and uses async
+ * streams (a byte-range read piped to a write stream) so it never blocks the
+ * main-process event loop — the app stays responsive while several tracks
+ * extract at once. The file's data is contiguous (single extent), so the exact
+ * byte range [extent*SECTOR, +size) is the file content.
+ */
 function extractFile(isoPath, extent, size, destPath) {
-  const fd = fs.openSync(isoPath, 'r')
-  const out = fs.openSync(destPath, 'w')
-  try {
-    let remaining = size
-    let lba = extent
-    const buf = Buffer.alloc(SECTOR)
-    while (remaining > 0) {
-      fs.readSync(fd, buf, 0, SECTOR, lba * SECTOR)
-      const n = Math.min(SECTOR, remaining)
-      fs.writeSync(out, buf, 0, n)
-      remaining -= n
-      lba++
-    }
-  } finally {
-    fs.closeSync(fd)
-    fs.closeSync(out)
-  }
+  return new Promise((resolve, reject) => {
+    const start = extent * SECTOR
+    const end = start + size - 1 // inclusive
+    const rs = fs.createReadStream(isoPath, { start, end })
+    const ws = fs.createWriteStream(destPath)
+    const fail = (e) => { rs.destroy(); ws.destroy(); reject(e) }
+    rs.on('error', fail)
+    ws.on('error', fail)
+    ws.on('finish', resolve)
+    rs.pipe(ws)
+  })
 }
 
 // Video payloads on karaoke discs.

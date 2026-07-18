@@ -184,7 +184,7 @@ async function importIsos(isoPaths, onProgress) {
     active.set(slot, { name: trackName, fraction: 0 })
     emit(trackName)
     try {
-      iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
+      await iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
       await transcode(tmp, job.dest, (f) => {
         active.set(slot, { name: trackName, fraction: f })
         emit(trackName)

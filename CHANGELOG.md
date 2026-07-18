@@ -13,6 +13,17 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.15] - 2026-07-18
+
+### Fixed
+
+- **App freezing (unresponsive) while importing a disc** — extracting each ISO
+  track from the image used **blocking** file I/O on the main process, so the
+  whole window froze during extraction (worse with several tracks at once).
+  Extraction is now **fully asynchronous (streamed)**, so the app stays
+  responsive — you can browse, search, and play while a disc converts in the
+  background. Output is byte-for-byte identical, and extraction is faster too.
+
 ## [0.9.14] - 2026-07-18
 
 ### Changed
@@ -439,7 +450,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.14...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.15...HEAD
+[0.9.15]: https://github.com/nrldcm/okara/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/nrldcm/okara/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/nrldcm/okara/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/nrldcm/okara/compare/v0.9.11...v0.9.12
