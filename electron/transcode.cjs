@@ -16,8 +16,15 @@ function ffmpegPath() {
  * Transcode `input` → `output` (.mp4). onProgress(fraction 0..1) is called as
  * it runs (parsed from ffmpeg's time= against the probed duration).
  * Resolves on success, rejects on failure.
+ *
+ * opts: { preset, threads } — `preset` is the x264 speed/quality preset
+ * (default 'superfast', a good speed/quality balance for DVD/VCD); `threads`
+ * caps ffmpeg's encode threads so several parallel transcodes don't fight over
+ * every core (0 = ffmpeg auto, use all cores — best for a single track).
  */
-function transcode(input, output, onProgress) {
+function transcode(input, output, onProgress, opts = {}) {
+  const preset = opts.preset || 'superfast'
+  const threads = String(opts.threads == null ? 0 : opts.threads)
   return new Promise((resolve, reject) => {
     probeDuration(input).then((durationSec) => {
       const args = [
@@ -33,8 +40,9 @@ function transcode(input, output, onProgress) {
         '-filter_complex', '[0:v:0]bwdif=mode=send_frame[v]',
         '-map', '[v]',
         '-map', '0:a:0?',
+        '-threads', threads,
         '-c:v', 'libx264',
-        '-preset', 'veryfast',
+        '-preset', preset,
         '-crf', '23',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',

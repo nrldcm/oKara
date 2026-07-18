@@ -13,6 +13,16 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.10] - 2026-07-18
+
+### Changed
+
+- **Import .iso is much faster still** — the transcoder now uses **all your CPU
+  cores**: it runs one parallel encode per core (previously capped at a few) and
+  shares the cores fairly between them, and each track encodes with a faster
+  x264 preset (`superfast`). A single track still gets every core. A multi-track
+  disc now finishes in roughly `tracks ÷ cores` of the old one-at-a-time time.
+
 ## [0.9.9] - 2026-07-18
 
 ### Added
@@ -365,7 +375,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.9...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.10...HEAD
+[0.9.10]: https://github.com/nrldcm/okara/compare/v0.9.9...v0.9.10
 [0.9.9]: https://github.com/nrldcm/okara/compare/v0.9.8...v0.9.9
 [0.9.8]: https://github.com/nrldcm/okara/compare/v0.9.7...v0.9.8
 [0.9.7]: https://github.com/nrldcm/okara/compare/v0.9.6...v0.9.7

@@ -77,12 +77,15 @@ const ext = (p) => (p.split('.').pop() || '').toLowerCase()
  * Import DVD/VCD .iso files: extract each video track, transcode it to MP4 in
  * the library folder, and report progress. Returns library entries.
  */
-// How many tracks to transcode at once. ffmpeg itself is multi-threaded, so we
-// keep the pool modest to avoid oversubscribing the CPU while still finishing a
-// multi-track disc far faster than one-at-a-time.
+// Saturate the CPU: run as many parallel transcodes as there are logical cores
+// (capped so memory stays sane), and give each ffmpeg a fair slice of threads
+// so they don't all fight over every core. A multi-track disc then converts in
+// roughly (tracks / cores) the time of one-at-a-time.
+function importCores() {
+  return Math.max(2, os.cpus()?.length || 2)
+}
 function importConcurrency(jobCount) {
-  const cores = os.cpus()?.length || 2
-  return Math.max(1, Math.min(4, Math.floor(cores / 2), jobCount))
+  return Math.max(1, Math.min(importCores(), 12, jobCount))
 }
 
 async function importIsos(isoPaths, onProgress) {
@@ -122,12 +125,17 @@ async function importIsos(isoPaths, onProgress) {
     fraction: [...active.values()].reduce((a, b) => a + b, 0),
   })
 
+  // Split cores across the parallel encodes so N ffmpegs don't each grab all
+  // cores. Single track → all cores on it.
+  const conc = importConcurrency(total)
+  const threadsPer = Math.max(1, Math.floor(importCores() / conc))
+
   const runJob = async (job, slot) => {
     const tmp = path.join(os.tmpdir(), `okara-${Date.now()}-${slot}-${job.i}.${ext(job.v.path)}`)
     active.set(slot, 0)
     try {
       iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
-      await transcode(tmp, job.dest, (f) => { active.set(slot, f); emit(path.basename(job.dest)) })
+      await transcode(tmp, job.dest, (f) => { active.set(slot, f); emit(path.basename(job.dest)) }, { threads: threadsPer })
       out.push({ name: path.basename(job.dest), path: job.dest })
     } catch (e) {
       // Drop the truncated output so a failed track never lands in the library.
@@ -142,7 +150,6 @@ async function importIsos(isoPaths, onProgress) {
   }
 
   // Fixed pool of workers pulling from the shared job list.
-  const conc = importConcurrency(total)
   let next = 0
   const worker = async (slot) => {
     while (next < jobs.length) {
