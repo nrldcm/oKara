@@ -13,6 +13,18 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.2] - 2026-07-18
+
+### Changed
+
+- **Disc conversion now survives a page refresh** — the convert job runs in the
+  Electron main process (the ffmpeg child keeps going regardless of the
+  renderer), and the main process is now the source of truth for job status. A
+  reloaded renderer queries it and restores the "Converting X%" indicator, and
+  when a job finishes the library folder is re-scanned so the new MP4s appear
+  without needing another restart. Combined with refresh being disabled, an
+  in-progress import can no longer be lost.
+
 ## [0.9.1] - 2026-07-18
 
 ### Fixed
@@ -248,7 +260,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/nrldcm/okara/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/nrldcm/okara/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/nrldcm/okara/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/nrldcm/okara/compare/v0.8.1...v0.8.2

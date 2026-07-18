@@ -23,6 +23,9 @@ onMounted(async () => {
   initTheme()
   loadSettings()
   importJob.ensureListener() // keep convert progress alive across tab switches
+  // When a background conversion finishes, pick up the new MP4s (covers a
+  // refresh that happened mid-conversion).
+  ;(window as any).okara?.library?.onImportDone?.(() => library.rescan())
   await library.load()
   await remote.init()
 })

@@ -327,7 +327,7 @@ export function useLibrary() {
     await load()
   }
 
-  return { songs, loaded, load, importFiles, importFromPicker, importDisc, remove, clearAll, findByNumber, renumber }
+  return { songs, loaded, load, rescan: scanFolder, importFiles, importFromPicker, importDisc, remove, clearAll, findByNumber, renumber }
 }
 
 /** Desktop app can transcode DVD/VCD to MP4 (native ffmpeg present). */

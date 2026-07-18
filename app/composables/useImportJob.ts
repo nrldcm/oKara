@@ -12,19 +12,26 @@ export function useImportJob() {
   const failed = useState('okara-import-failed', () => false)
   const listening = useState('okara-import-listening', () => false)
 
+  function applyProgress(p: any) {
+    const n = (p.index ?? 0) + 1
+    text.value = p.error
+      ? `Skipped ${p.name}: ${p.error}`
+      : `Converting ${p.name} (${n}/${p.total})…`
+    pct.value = Math.round((((p.index ?? 0) + (p.fraction ?? 0)) / Math.max(1, p.total)) * 100)
+  }
+
   /** Register the main→renderer progress listener once, for the app's lifetime. */
   function ensureListener() {
     if (!import.meta.client || listening.value) return
     const lib = (window as any).okara?.library
     if (!lib?.onProgress) return
     listening.value = true
-    lib.onProgress((p: any) => {
-      const n = (p.index ?? 0) + 1
-      text.value = p.error
-        ? `Skipped ${p.name}: ${p.error}`
-        : `Converting ${p.name} (${n}/${p.total})…`
-      pct.value = Math.round((((p.index ?? 0) + (p.fraction ?? 0)) / Math.max(1, p.total)) * 100)
-    })
+    lib.onProgress((p: any) => applyProgress(p))
+    // The convert job runs in the main process, so it survives a page refresh.
+    // Restore the indicator by querying the current job on load.
+    lib.importStatus?.().then((status: any) => {
+      if (status && status.active) { active.value = true; applyProgress(status) }
+    }).catch(() => {})
   }
 
   /**

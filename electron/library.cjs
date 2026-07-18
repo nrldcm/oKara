@@ -185,7 +185,28 @@ function registerLibraryIpc(getWindow) {
     }
   })
 
-  const progress = (win, p) => win && win.webContents.send('okara:import-progress', p)
+  // The current convert job lives in the main process, so it survives a
+  // renderer refresh (the ffmpeg child keeps running here) and a reloaded
+  // renderer can query it to restore the progress UI.
+  let currentJob = null
+  const progress = (win, p) => {
+    currentJob = { ...p, active: true }
+    if (win) win.webContents.send('okara:import-progress', p)
+  }
+
+  async function runJob(win, fn) {
+    currentJob = { active: true, index: 0, total: 0, name: '', fraction: 0 }
+    try {
+      return await fn()
+    } finally {
+      currentJob = null
+      // Tell the renderer to rescan the library folder so freshly-converted
+      // MP4s appear even if the page was refreshed mid-conversion.
+      if (win) win.webContents.send('okara:import-done')
+    }
+  }
+
+  ipcMain.handle('okara:import-status', () => currentJob)
 
   ipcMain.handle('okara:lib-import-iso', async () => {
     const win = getWindow()
@@ -195,7 +216,7 @@ function registerLibraryIpc(getWindow) {
       filters: [{ name: 'Disc image', extensions: ['iso'] }],
     })
     if (res.canceled || !res.filePaths.length) return []
-    return importIsos(res.filePaths, (p) => progress(win, p))
+    return runJob(win, () => importIsos(res.filePaths, (p) => progress(win, p)))
   })
 
   ipcMain.handle('okara:lib-import-dvd-video', async () => {
@@ -206,7 +227,7 @@ function registerLibraryIpc(getWindow) {
       filters: [{ name: 'DVD/VCD video', extensions: TRANSCODE_EXT }],
     })
     if (res.canceled || !res.filePaths.length) return []
-    return transcodeVideos(res.filePaths, (p) => progress(win, p))
+    return runJob(win, () => transcodeVideos(res.filePaths, (p) => progress(win, p)))
   })
 }
 
