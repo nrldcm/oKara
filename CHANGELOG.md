@@ -13,6 +13,20 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.0] - 2026-07-18
+
+### Added
+
+- **Import DVD/VCD disc images (.iso) — desktop** — okara now reads a karaoke
+  disc image directly: it extracts each video track from the ISO (a built-in
+  ISO9660 reader, no external tools) and **transcodes it to MP4 (H.264/AAC,
+  stereo preserved for voice-on/off)** with a bundled ffmpeg, dropping the
+  results straight into your library folder. Raw **VOB/DAT** video files can be
+  imported and converted the same way. A progress bar shows each track as it
+  converts. This finally makes those old MPEG-2/MPEG-1 discs — which browsers
+  can't play natively — playable here and on the tablet (copy the converted
+  MP4s over). Conversion runs once per disc.
+
 ## [0.8.2] - 2026-07-18
 
 ### Changed
@@ -222,7 +236,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/nrldcm/okara/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/nrldcm/okara/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/nrldcm/okara/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/nrldcm/okara/compare/v0.7.0...v0.8.0

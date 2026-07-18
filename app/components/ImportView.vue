@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SongSource } from '~/utils/db'
-import { libraryFolderAvailable } from '~/composables/useLibrary'
+import { libraryFolderAvailable, canConvertDiscs } from '~/composables/useLibrary'
 
 const library = useLibrary()
 
@@ -14,13 +14,39 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const folderInput = ref<HTMLInputElement | null>(null)
 const hasFolder = ref(false)
 const folderDir = ref('')
+const canConvert = ref(false)
+
+// DVD/VCD transcode progress
+const converting = ref(false)
+const convText = ref('')
+const convPct = ref(0)
+let offProgress: (() => void) | null = null
 
 onMounted(async () => {
   hasFolder.value = libraryFolderAvailable()
+  canConvert.value = canConvertDiscs()
   if (hasFolder.value) {
     try { folderDir.value = (await (window as any).okara.library.info()).dir } catch { /* ignore */ }
   }
+  if (canConvert.value) {
+    offProgress = (window as any).okara.library.onProgress((p: any) => {
+      const n = (p.index ?? 0) + 1
+      convText.value = p.error
+        ? `Skipped ${p.name}: ${p.error}`
+        : `Converting ${p.name} (${n}/${p.total})…`
+      convPct.value = Math.round(((p.index + (p.fraction ?? 0)) / Math.max(1, p.total)) * 100)
+    })
+  }
 })
+onBeforeUnmount(() => { offProgress?.() })
+
+async function importDisc(kind: 'iso' | 'dvd-video') {
+  converting.value = true
+  convText.value = 'Choose the disc image / files…'
+  convPct.value = 0
+  await run(() => library.importDisc(kind, source.value))
+  converting.value = false
+}
 
 const sources: { value: SongSource; label: string; hint: string }[] = [
   { value: 'UltraStar', label: 'UltraStar', hint: '.txt + audio — has scoring' },
@@ -128,8 +154,26 @@ function onPick(e: Event) {
         <i class="bi bi-folder-check" /> Imports are copied into your library folder:
         <code>{{ folderDir }}</code>
       </p>
-      <p v-if="busy" class="status">Importing…</p>
+      <p v-if="busy && !converting" class="status">Importing…</p>
       <p v-else-if="result" class="status" :class="failed ? 'err' : 'ok'">{{ result }}</p>
+    </div>
+
+    <div v-if="canConvert" class="dvd">
+      <h3><i class="bi bi-disc-fill" /> DVD / VCD disc</h3>
+      <p class="dvd__lead">
+        Import an old karaoke <strong>disc image (.iso)</strong> or its raw
+        <strong>VOB/DAT</strong> video files — okara extracts and converts them
+        to MP4 so they play here and on the tablet. Conversion runs once per disc
+        and can take a few minutes.
+      </p>
+      <div class="dvd__btns">
+        <button :disabled="converting" @click="importDisc('iso')"><i class="bi bi-disc" /> Import .iso image</button>
+        <button class="ghost" :disabled="converting" @click="importDisc('dvd-video')"><i class="bi bi-film" /> Import VOB/DAT files</button>
+      </div>
+      <div v-if="converting" class="conv">
+        <div class="conv__bar"><div class="conv__fill" :style="{ width: convPct + '%' }" /></div>
+        <p class="conv__text">{{ convText }} <span v-if="convPct">— {{ convPct }}%</span></p>
+      </div>
     </div>
 
     <input ref="fileInput" type="file" multiple hidden
@@ -172,6 +216,18 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .status.err { color: var(--danger); }
 .lib-note { margin-top: 14px; font-size: 12px; color: var(--text-faint); word-break: break-all; }
 .lib-note code { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+.dvd { margin-top: 26px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
+.dvd h3 { margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.dvd__lead { color: var(--text-muted); font-size: 14px; line-height: 1.55; margin: 0 0 14px; }
+.dvd__btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.dvd__btns button { padding: 11px 18px; border-radius: 999px; border: none; background: var(--accent);
+  color: var(--on-accent); font-weight: 600; cursor: pointer; }
+.dvd__btns .ghost { background: var(--surface-2); color: var(--text); }
+.dvd__btns button:disabled { opacity: .5; }
+.conv { margin-top: 16px; }
+.conv__bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.conv__fill { height: 100%; background: var(--accent-grad); transition: width .2s; }
+.conv__text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
 .note { margin-top: 30px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; }
 .note h3 { margin: 0 0 8px; font-size: 15px; }
 .note ul { margin: 0; padding-left: 18px; line-height: 1.7; color: var(--text-muted); font-size: 14px; }

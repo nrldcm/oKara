@@ -28,6 +28,14 @@ contextBridge.exposeInMainWorld('okara', {
     chooseDir: () => ipcRenderer.invoke('okara:lib-choose-dir'),
     pickImport: (kind) => ipcRenderer.invoke('okara:lib-pick-import', kind),
     importPaths: (paths) => ipcRenderer.invoke('okara:lib-import-paths', paths),
+    importIso: () => ipcRenderer.invoke('okara:lib-import-iso'),
+    importDvdVideo: () => ipcRenderer.invoke('okara:lib-import-dvd-video'),
+    canConvert: true, // native ffmpeg is available on the desktop app
+    onProgress: (cb) => {
+      const h = (_e, p) => cb(p)
+      ipcRenderer.on('okara:import-progress', h)
+      return () => ipcRenderer.removeListener('okara:import-progress', h)
+    },
     list: () => ipcRenderer.invoke('okara:lib-list'),
     readText: (p) => ipcRenderer.invoke('okara:lib-read-text', p),
     deleteFiles: (paths) => ipcRenderer.invoke('okara:lib-delete', paths),

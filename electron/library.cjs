@@ -1,8 +1,11 @@
 const { app, dialog, ipcMain } = require('electron')
 const fs = require('fs')
 const fsp = require('fs/promises')
+const os = require('os')
 const path = require('path')
 const { pathToFileURL } = require('url')
+const iso = require('./iso.cjs')
+const { transcode } = require('./transcode.cjs')
 
 // The on-disk song library: every import is copied here so the whole
 // collection lives in one folder that survives reinstalls. The location is
@@ -59,6 +62,73 @@ function insideLibrary(p) {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
 }
 
+function uniqueDest(dir, name) {
+  const parsed = path.parse(name)
+  let dest = path.join(dir, name)
+  for (let i = 2; fs.existsSync(dest); i++) dest = path.join(dir, `${parsed.name} (${i})${parsed.ext}`)
+  return dest
+}
+
+// DVD/VCD codecs the browser can't play → must be transcoded to MP4 on import.
+const TRANSCODE_EXT = ['vob', 'dat', 'mpg', 'mpeg', 'm2v', 'mpv', 'vro']
+const ext = (p) => (p.split('.').pop() || '').toLowerCase()
+
+/**
+ * Import DVD/VCD .iso files: extract each video track, transcode it to MP4 in
+ * the library folder, and report progress. Returns library entries.
+ */
+async function importIsos(isoPaths, onProgress) {
+  const dir = libraryDir()
+  const out = []
+  // First tally the work so progress can span all tracks across all discs.
+  const jobs = []
+  for (const isoPath of isoPaths) {
+    let vids = []
+    try { vids = iso.videoFiles(isoPath) } catch { vids = [] }
+    const label = path.parse(isoPath).name
+    vids.forEach((v, i) => jobs.push({ isoPath, v, label, i }))
+  }
+  const total = jobs.length
+  let done = 0
+  for (const job of jobs) {
+    const tmp = path.join(os.tmpdir(), `okara-${Date.now()}-${job.i}.${ext(job.v.path)}`)
+    try {
+      iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
+      const dest = uniqueDest(dir, `${job.label}-${String(job.i + 1).padStart(2, '0')}.mp4`)
+      await transcode(tmp, dest, (f) => {
+        onProgress?.({ index: done, total, name: path.basename(dest), fraction: f })
+      })
+      out.push({ name: path.basename(dest), path: dest })
+    } catch (e) {
+      onProgress?.({ index: done, total, name: path.basename(job.v.path), error: String(e && e.message || e) })
+    } finally {
+      try { await fsp.unlink(tmp) } catch { /* already gone */ }
+      done++
+    }
+  }
+  return out
+}
+
+/** Transcode picked DVD/VCD video files to MP4 in the library folder. */
+async function transcodeVideos(paths, onProgress) {
+  const dir = libraryDir()
+  const out = []
+  const total = paths.length
+  let done = 0
+  for (const src of paths) {
+    const dest = uniqueDest(dir, `${path.parse(src).name}.mp4`)
+    try {
+      await transcode(src, dest, (f) => onProgress?.({ index: done, total, name: path.basename(dest), fraction: f }))
+      out.push({ name: path.basename(dest), path: dest })
+    } catch (e) {
+      onProgress?.({ index: done, total, name: path.basename(src), error: String(e && e.message || e) })
+    } finally {
+      done++
+    }
+  }
+  return out
+}
+
 function registerLibraryIpc(getWindow) {
   ipcMain.handle('okara:lib-info', () => ({ dir: libraryDir(), canChooseDir: true }))
 
@@ -113,6 +183,30 @@ function registerLibraryIpc(getWindow) {
         try { await fsp.unlink(p) } catch { /* already gone */ }
       }
     }
+  })
+
+  const progress = (win, p) => win && win.webContents.send('okara:import-progress', p)
+
+  ipcMain.handle('okara:lib-import-iso', async () => {
+    const win = getWindow()
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Import DVD/VCD disc image (.iso)',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Disc image', extensions: ['iso'] }],
+    })
+    if (res.canceled || !res.filePaths.length) return []
+    return importIsos(res.filePaths, (p) => progress(win, p))
+  })
+
+  ipcMain.handle('okara:lib-import-dvd-video', async () => {
+    const win = getWindow()
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Import DVD/VCD video files (converted to MP4)',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'DVD/VCD video', extensions: TRANSCODE_EXT }],
+    })
+    if (res.canceled || !res.filePaths.length) return []
+    return transcodeVideos(res.filePaths, (p) => progress(win, p))
   })
 }
 

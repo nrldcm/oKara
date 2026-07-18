@@ -268,6 +268,22 @@ export function useLibrary() {
     return detected.length
   }
 
+  /**
+   * Import a DVD/VCD .iso: the desktop extracts each track and transcodes it to
+   * MP4 in the library folder (native ffmpeg). `kind: 'iso' | 'dvd-video'`.
+   */
+  async function importDisc(kind: 'iso' | 'dvd-video', source: SongSource): Promise<number> {
+    const lib = bridge() as any
+    if (!lib?.importIso) return 0
+    const entries: { name: string; path: string }[] =
+      kind === 'iso' ? await lib.importIso() : await lib.importDvdVideo()
+    if (!entries.length) return 0
+    // Filenames already carry the disc name + track number, so no extra label.
+    const detected = await detectSongs(entries, source)
+    await store(detected)
+    return detected.length
+  }
+
   /** Change a song's dial number (to match a DVD songbook). */
   async function renumber(id: string, number: number): Promise<string | null> {
     const taken = songs.value.find((s) => s.number === number && s.id !== id)
@@ -311,5 +327,10 @@ export function useLibrary() {
     await load()
   }
 
-  return { songs, loaded, load, importFiles, importFromPicker, remove, clearAll, findByNumber, renumber }
+  return { songs, loaded, load, importFiles, importFromPicker, importDisc, remove, clearAll, findByNumber, renumber }
+}
+
+/** Desktop app can transcode DVD/VCD to MP4 (native ffmpeg present). */
+export function canConvertDiscs(): boolean {
+  return import.meta.client && !!(window as any).okara?.library?.canConvert
 }

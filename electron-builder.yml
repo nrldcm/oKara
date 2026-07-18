@@ -9,6 +9,10 @@ files:
   - build/icon.ico
   - package.json
 asar: true
+# The bundled ffmpeg binary (DVD/VCD → MP4) must live outside the asar so it
+# is executable at runtime.
+asarUnpack:
+  - node_modules/@ffmpeg-installer/**
 win:
   icon: build/icon.ico
   target:

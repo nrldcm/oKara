@@ -36,9 +36,13 @@ real-time **pitch scoring**, **vocal effects** (reverb/echo/EQ), and a
 ## About DVD / chip data
 
 A karaoke DVD (Magic Sing, Platinum, MegaVision, TJ Media) contains **video
-files** with the lyrics burned in — those can be imported and played. The
-**encrypted chip/cartridge data** (e.g. a Magic Sing cartridge) is proprietary
-and cannot be extracted. Only use files you legally own.
+files** with the lyrics burned in. On the **desktop app** you can import a disc
+image (`.iso`) or raw `VOB`/`DAT` files directly — okara extracts the tracks and
+**converts them to MP4** (bundled ffmpeg) into your library folder, so those old
+MPEG-2/MPEG-1 discs (which browsers can't play natively) become playable here
+and on the tablet. Conversion runs once per disc. The **encrypted
+chip/cartridge data** (e.g. a Magic Sing cartridge) is proprietary and cannot be
+extracted. Only use files you legally own.
 
 ## Disclaimer
 
