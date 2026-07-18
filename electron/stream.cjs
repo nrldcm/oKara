@@ -19,7 +19,11 @@ function ffmpegArgs(input) {
     '-fflags', '+genpts+igndts+discardcorrupt',
     '-err_detect', 'ignore_err',
     '-i', input,
-    '-map', '0:v:0?',
+    // Deinterlace (DVD/VCD video is interlaced) — without this the combing
+    // shows up as tearing that looks like a scratched disc. send_frame keeps
+    // the frame rate so the live encode stays ahead of playback.
+    '-filter_complex', '[0:v:0]bwdif=mode=send_frame[v]',
+    '-map', '[v]',
     '-map', '0:a:0?',
     // veryfast (not ultrafast/zerolatency) — cleaner picture while still
     // encoding faster than real time so playback stays ahead.

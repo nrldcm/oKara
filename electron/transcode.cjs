@@ -28,7 +28,10 @@ function transcode(input, output, onProgress) {
         '-fflags', '+genpts+igndts+discardcorrupt',
         '-err_detect', 'ignore_err',
         '-i', input,
-        '-map', '0:v:0?',
+        // Deinterlace DVD/VCD video — otherwise the interlacing combing looks
+        // like a scratched disc on playback.
+        '-filter_complex', '[0:v:0]bwdif=mode=send_frame[v]',
+        '-map', '[v]',
         '-map', '0:a:0?',
         '-c:v', 'libx264',
         '-preset', 'veryfast',

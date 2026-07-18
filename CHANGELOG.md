@@ -13,6 +13,17 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.7] - 2026-07-18
+
+### Fixed
+
+- **DVD/VCD playback looked like a scratched disc (combing/tearing)** — even
+  from a clean `.iso`. DVD/VCD video is **interlaced**, and it was being encoded
+  as progressive, so the interlacing showed up as combing artifacts that look
+  like disc damage. Both the import transcode and the live disc/ISO stream now
+  **deinterlace** (`bwdif`), giving a clean, smooth picture. Re-import an ISO
+  that was imported before this fix to get the deinterlaced version.
+
 ## [0.9.6] - 2026-07-18
 
 ### Fixed
@@ -306,7 +317,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.6...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.7...HEAD
+[0.9.7]: https://github.com/nrldcm/okara/compare/v0.9.6...v0.9.7
 [0.9.6]: https://github.com/nrldcm/okara/compare/v0.9.5...v0.9.6
 [0.9.5]: https://github.com/nrldcm/okara/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/nrldcm/okara/compare/v0.9.3...v0.9.4
