@@ -432,8 +432,8 @@
       micSource = micCtx.createMediaStreamSource(stream)
       // Capture path: downsample to 16 kHz mono Int16 and stream to the host.
       // The processor is routed through a MUTED gain so onaudioprocess fires
-      // without any sound leaving the phone.
-      var bufSize = 2048
+      // without any sound leaving the phone. Small buffer = lower latency.
+      var bufSize = 512
       micNode = micCtx.createScriptProcessor(bufSize, 1, 1)
       var silent = micCtx.createGain(); silent.gain.value = 0
       micSource.connect(micNode)

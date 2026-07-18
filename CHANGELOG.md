@@ -13,6 +13,18 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.8.2] - 2026-07-18
+
+### Changed
+
+- **Lower phone-as-mic latency** — smaller capture buffer on the phone (512),
+  an interactive-latency host playback context, a 20 ms jitter cushion, and a
+  resync guard so latency can't creep up with network jitter. This meaningfully
+  cuts the phone-mic delay, but note it is a **wireless mic over Wi-Fi** and can
+  never be truly near-zero: for lowest latency (~10-25 ms) plug a mic into the
+  host (tablet/laptop) and use "Hear my voice" (the native Oboe engine),
+  instead of the phone.
+
 ## [0.8.1] - 2026-07-18
 
 ### Fixed
@@ -210,7 +222,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/nrldcm/okara/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/nrldcm/okara/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/nrldcm/okara/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/nrldcm/okara/compare/v0.6.1...v0.7.0

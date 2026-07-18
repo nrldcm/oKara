@@ -174,7 +174,7 @@ export function usePitch() {
   function playExternal(samples: Float32Array, rate: number) {
     if (!import.meta.client) return
     if (!playCtx) {
-      playCtx = new AudioContext()
+      try { playCtx = new AudioContext({ latencyHint: 'interactive' }) } catch { playCtx = new AudioContext() }
       playNext = 0
       playGain = playCtx.createGain()
       playGain.connect(playCtx.destination)
@@ -188,7 +188,10 @@ export function usePitch() {
     src.buffer = buf
     src.connect(playGain!)
     const now = ctx.currentTime
-    if (playNext < now) playNext = now + 0.06
+    // Keep the scheduling head close to "now" so latency stays minimal and can't
+    // creep upward with network jitter — a tiny 20 ms cushion absorbs jitter,
+    // and if the buffer ever runs >150 ms ahead we resync to catch up.
+    if (playNext < now + 0.02 || playNext > now + 0.15) playNext = now + 0.02
     src.start(playNext)
     playNext += buf.duration
   }
