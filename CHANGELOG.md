@@ -13,6 +13,20 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.9] - 2026-07-18
+
+### Added
+
+- **App version is now shown** — in the window title (`okara 0.9.9 — open
+  karaoke`) and at the very bottom of **Settings** (`okara version 0.9.9`), so
+  you can always tell which build you're running.
+
+### Changed
+
+- Pressing **Play** on a disc/ISO track on an out-of-date build now shows a
+  clear "update to v0.9.8+" message instead of silently doing nothing, and the
+  "Play now" hint reflects the prepare-then-play flow (v0.9.8).
+
 ## [0.9.8] - 2026-07-18
 
 ### Fixed
@@ -331,7 +345,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.8...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.9...HEAD
+[0.9.9]: https://github.com/nrldcm/okara/compare/v0.9.8...v0.9.9
 [0.9.8]: https://github.com/nrldcm/okara/compare/v0.9.7...v0.9.8
 [0.9.7]: https://github.com/nrldcm/okara/compare/v0.9.6...v0.9.7
 [0.9.6]: https://github.com/nrldcm/okara/compare/v0.9.5...v0.9.6

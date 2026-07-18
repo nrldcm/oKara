@@ -182,7 +182,7 @@ function onPick(e: Event) {
       <p v-else-if="job.message.value" class="status" :class="job.failed.value ? 'err' : 'ok'">{{ job.message.value }}</p>
 
       <div class="play-now">
-        <p class="play-now__lead"><i class="bi bi-play-circle" /> <strong>Play now</strong> without importing — plays the disc/ISO track directly (converts live as it plays):</p>
+        <p class="play-now__lead"><i class="bi bi-play-circle" /> <strong>Play now</strong> without importing — prepares the disc/ISO track (a short convert), then plays it clean:</p>
         <div class="dvd__btns">
           <button @click="scanDisc"><i class="bi bi-disc-fill" /> Scan inserted disc</button>
           <button class="ghost" @click="browseDisc('iso')"><i class="bi bi-disc" /> Play from .iso</button>

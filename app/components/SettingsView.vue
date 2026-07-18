@@ -8,6 +8,8 @@ const { mode: themeMode, setMode: setThemeMode } = useTheme()
 const { refreshPairing } = useRemote()
 const emit = defineEmits<{ clear: [] }>()
 
+const version = useRuntimeConfig().public.version
+
 const THEME_MODES: { value: ThemeMode; label: string; icon: string }[] = [
   { value: 'day', label: 'Day', icon: 'bi-sun-fill' },
   { value: 'night', label: 'Night', icon: 'bi-moon-stars-fill' },
@@ -262,6 +264,7 @@ function doClear() {
     </div>
 
     <p class="about">okara · open karaoke — UltraStar player + pitch scoring + phone remote</p>
+    <p class="version">okara version {{ version }}</p>
 
     <Teleport to="body">
       <div v-if="showAdvanced" class="modal-backdrop" @click.self="showAdvanced = false">
@@ -351,6 +354,7 @@ h1 { font-size: 26px; margin: 0 0 24px; }
 .del { padding: 10px 18px; border-radius: 999px; border: none; background: var(--danger); color: #fff; cursor: pointer; }
 .confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .about { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 30px; }
+.version { text-align: center; color: var(--text-faint); font-size: 12px; margin: 6px 0 4px; opacity: .8; }
 
 @media (max-width: 560px) {
   h1 { font-size: 22px; }

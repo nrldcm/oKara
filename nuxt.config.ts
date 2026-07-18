@@ -1,11 +1,15 @@
+import pkg from './package.json'
+
 export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: '2025-07-01',
   devtools: { enabled: false },
   css: ['bootstrap-icons/font/bootstrap-icons.css', '~/assets/css/main.css'],
+  // App version (from package.json) — surfaced in the window title and Settings.
+  runtimeConfig: { public: { version: pkg.version } },
   app: {
     head: {
-      title: 'okara — open karaoke',
+      title: `okara ${pkg.version} — open karaoke`,
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1' },

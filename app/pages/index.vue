@@ -52,7 +52,12 @@ const prepError = ref('')
 
 async function playDisc(track: { title: string; src: unknown }) {
   const okara = (window as any).okara
-  if (!okara?.discPrepare) return
+  // Older builds have no discPrepare — tell the user to update instead of
+  // doing nothing when Play is pressed.
+  if (!okara?.discPrepare) {
+    prepError.value = 'This build is out of date. Update to okara v0.9.8+ to play from a disc/ISO.'
+    return
+  }
   preparing.value = true
   prepPct.value = 0
   prepError.value = ''
