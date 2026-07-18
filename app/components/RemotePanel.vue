@@ -39,7 +39,8 @@ watch([pairing, theme], renderQr)
     <p class="desc">
       Scan the QR with your phone to turn it into a remote control — play, pause,
       next, previous, stop, volume, browse/search the songbook, and even
-      <strong>sing using the phone as the microphone</strong>.
+      <strong>sing using the phone as the microphone</strong> (the phone is a
+      pure mic — your voice comes out of the karaoke speakers, not the phone).
     </p>
     <p class="secure-note">
       <i class="bi bi-shield-lock" /> The remote is served over HTTPS with a

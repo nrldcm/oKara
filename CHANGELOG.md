@@ -13,6 +13,17 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.8.1] - 2026-07-18
+
+### Fixed
+
+- **Phone-mic feedback on the phone** — the phone no longer plays any audio
+  when used as the mic. It is now a **pure microphone**: it captures and
+  streams your voice, and all sound (music + your voice) comes out of the
+  **host (laptop/tablet) speakers**, so the phone can't feed back on itself.
+  Mic capture also enables echo cancellation / noise suppression. The host
+  "Mic volume" now controls the relayed phone-voice level.
+
 ## [0.8.0] - 2026-07-18
 
 ### Added
@@ -199,7 +210,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/nrldcm/okara/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/nrldcm/okara/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/nrldcm/okara/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/nrldcm/okara/compare/v0.6.0...v0.6.1

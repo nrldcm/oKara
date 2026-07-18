@@ -41,6 +41,7 @@ export function usePitch() {
   // FX graph
   // Playback of relayed phone audio through the host speakers.
   let playCtx: AudioContext | null = null
+  let playGain: GainNode | null = null
   let playNext = 0
 
   let bass: BiquadFilterNode | null = null
@@ -172,13 +173,20 @@ export function usePitch() {
   // network latency doesn't affect what the singer hears.
   function playExternal(samples: Float32Array, rate: number) {
     if (!import.meta.client) return
-    if (!playCtx) { playCtx = new AudioContext(); playNext = 0 }
+    if (!playCtx) {
+      playCtx = new AudioContext()
+      playNext = 0
+      playGain = playCtx.createGain()
+      playGain.connect(playCtx.destination)
+    }
     const ctx = playCtx
+    // Host "Mic volume" (0–200%) controls the relayed phone voice level.
+    playGain!.gain.value = settings.value.fx.volume
     const buf = ctx.createBuffer(1, samples.length, rate)
     buf.copyToChannel(samples.slice(), 0)
     const src = ctx.createBufferSource()
     src.buffer = buf
-    src.connect(ctx.destination)
+    src.connect(playGain!)
     const now = ctx.currentTime
     if (playNext < now) playNext = now + 0.06
     src.start(playNext)
@@ -186,6 +194,7 @@ export function usePitch() {
   }
 
   function stopExternalPlayback() {
+    playGain = null
     playCtx?.close().catch(() => {})
     playCtx = null
     playNext = 0

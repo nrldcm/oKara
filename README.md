@@ -78,13 +78,14 @@ signing key).
 the remote works with no router or internet at all. A paired **Bluetooth
 mic** (headset / karaoke mic) can be used via Settings → Bluetooth microphone.
 
-**Phone as microphone:** the remote can use the **phone itself as the mic** —
-the singer hears their own voice locally from the phone (near-zero latency, no
-network in the heard path) while the host scores from the streamed audio. This
-needs a secure page, so the remote is served over **HTTPS with a self-signed
-certificate**; your phone shows a one-time *"Not secure — proceed"* warning to
-accept (it's your own device on your own LAN). Tap **Sing — use this phone as
-mic** on the remote.
+**Phone as microphone:** the remote can use the **phone itself as the mic**.
+The phone is a **pure mic** — it captures your voice and streams it to the
+host, and plays **no audio itself** (so it can't feed back). All sound — the
+music and your voice — comes out of the **host (laptop/tablet) speakers**, and
+the host scores the performance. This needs a secure page, so the remote is
+served over **HTTPS with a self-signed certificate**; your phone shows a
+one-time *"Not secure — proceed"* warning to accept (it's your own device on
+your own LAN). Tap **Sing — use this phone as mic** on the remote.
 
 Releases are versioned ([SemVer](https://semver.org)) and every change is
 recorded in [`CHANGELOG.md`](CHANGELOG.md). See [`RELEASING.md`](RELEASING.md)

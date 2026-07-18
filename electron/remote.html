@@ -149,9 +149,6 @@
       <span data-icon="mic-fill"></span> <span id="singLabel">Sing — use this phone as mic</span>
     </button>
     <p class="sing-hint" id="singHint"></p>
-    <label class="vol" id="singVolRow" style="display:none"><span class="vol-label"><span data-icon="mic-fill"></span> My voice</span>
-      <input type="range" id="singVol" min="0" max="1.5" step="0.01" value="1" oninput="setMicVol(Number(this.value))" />
-      <span data-icon="volume-up-fill"></span></label>
   </div>
 
   <div id="queueTab" class="queue hidden"></div>
@@ -408,7 +405,7 @@
   }
 
   // ---- Phone-as-mic: local monitor + stream PCM (Int16 @ 16 kHz) to host ----
-  var micCtx = null, micStream = null, micNode = null, micGain = null, micSource = null, micOn = false
+  var micCtx = null, micStream = null, micNode = null, micSource = null, micOn = false
   var TARGET_RATE = 16000
   var singBtn = document.getElementById('singBtn')
   var singLabel = document.getElementById('singLabel')
@@ -422,27 +419,26 @@
       return
     }
     navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      // Echo cancellation + noise suppression tame the phone-speaker→mic
+      // feedback loop when monitoring without earphones.
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     }).then(function (stream) {
       micStream = stream
-      // Lowest-latency monitor the browser allows: interactive hint + a direct
-      // source→gain→speaker path (no extra nodes). What the singer hears never
-      // touches the network — only the scoring stream does.
+      // This phone is a PURE mic: it captures and streams to the host, but
+      // plays NO audio itself — so it cannot feed back. All sound (music +
+      // your voice) comes out of the host (laptop/tablet) speakers.
       var AC = window.AudioContext || window.webkitAudioContext
-      try { micCtx = new AC({ latencyHint: 'interactive' }) } catch (e) { micCtx = new AC() }
+      micCtx = new AC()
       micSource = micCtx.createMediaStreamSource(stream)
-      micGain = micCtx.createGain()
-      micGain.gain.value = Number(document.getElementById('singVol').value)
-      // Local monitor: the singer hears themselves from THIS phone (low latency).
-      micSource.connect(micGain)
-      micGain.connect(micCtx.destination)
       // Capture path: downsample to 16 kHz mono Int16 and stream to the host.
+      // The processor is routed through a MUTED gain so onaudioprocess fires
+      // without any sound leaving the phone.
       var bufSize = 2048
       micNode = micCtx.createScriptProcessor(bufSize, 1, 1)
-      micSource.connect(micNode)
-      micNode.connect(micCtx.destination) // required for onaudioprocess to fire (muted below)
       var silent = micCtx.createGain(); silent.gain.value = 0
-      micNode.disconnect(); micNode.connect(silent); silent.connect(micCtx.destination)
+      micSource.connect(micNode)
+      micNode.connect(silent)
+      silent.connect(micCtx.destination)
       var ratio = micCtx.sampleRate / TARGET_RATE
       micNode.onaudioprocess = function (e) {
         if (!micOn || !ws || ws.readyState !== 1) return
@@ -459,8 +455,7 @@
       micOn = true
       singBtn.className = 'sing on'
       singLabel.textContent = 'Singing — tap to stop'
-      singHint.textContent = 'You are the mic. Hold the phone near your mouth; you hear yourself here.'
-      document.getElementById('singVolRow').style.display = 'flex'
+      singHint.textContent = 'This phone is now the mic. Your voice comes out of the karaoke speakers, not the phone.'
       cmd('phone-mic-on')
     }).catch(function () {
       singHint.textContent = 'Mic permission denied. Allow microphone access and try again.'
@@ -473,14 +468,11 @@
     try { if (micNode) micNode.onaudioprocess = null } catch (e) {}
     try { if (micStream) micStream.getTracks().forEach(function (t) { t.stop() }) } catch (e) {}
     try { if (micCtx) micCtx.close() } catch (e) {}
-    micCtx = micStream = micNode = micGain = micSource = null
+    micCtx = micStream = micNode = micSource = null
     singBtn.className = 'sing'
     singLabel.textContent = 'Sing — use this phone as mic'
     singHint.textContent = ''
-    document.getElementById('singVolRow').style.display = 'none'
   }
-
-  function setMicVol(v) { if (micGain) micGain.gain.value = v }
 
   if (!token) status.textContent = 'Missing pairing token — scan the QR again.'
   else connect()
