@@ -54,6 +54,7 @@ async function createWindow() {
 
   remote = await startRemote(readConfig().remotePort)
   streamer = await startStreamServer(() => [os.tmpdir(), libraryDir(), ...allowedSources])
+  setInterval(pollDiscs, 3000) // auto-detect inserted discs, like a DVD player
 
   // Block all page reloads — a refresh would restart the app and abort an
   // in-progress disc conversion / import. Covers F5, Ctrl/Cmd+R,
@@ -80,6 +81,71 @@ function walkVideos(dir, out = []) {
     else if (it.isFile() && isVid(p)) out.push(p)
   }
   return out
+}
+
+function walkVideosSized(dir, out = []) {
+  try {
+    for (const it of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, it.name)
+      if (it.isDirectory()) walkVideosSized(p, out)
+      else if (it.isFile() && isVid(p)) {
+        try { if (fs.statSync(p).size > 1024 * 1024) out.push(p) } catch { /* skip */ }
+      }
+    }
+  } catch { /* unreadable dir */ }
+  return out
+}
+
+// Candidate mount points where an inserted disc shows up.
+function discRoots() {
+  if (process.platform === 'win32') {
+    const roots = []
+    for (let c = 68; c <= 90; c++) roots.push(String.fromCharCode(c) + ':\\') // D..Z (skip C: system)
+    return roots
+  }
+  const roots = []
+  for (const base of ['/media/' + (process.env.USER || ''), '/media', '/run/media', '/Volumes', '/mnt']) {
+    try { for (const d of fs.readdirSync(base)) roots.push(path.join(base, d)) } catch { /* none */ }
+  }
+  return roots
+}
+
+// A mounted volume is a karaoke video disc if it has VIDEO_TS (DVD) or
+// MPEGAV / MPEG2 / SEGMENT (VCD).
+function discAt(root) {
+  const has = (sub) => { try { return fs.existsSync(path.join(root, sub)) } catch { return false } }
+  const kind = has('VIDEO_TS') || has('video_ts') ? 'DVD'
+    : (has('MPEGAV') || has('mpegav') || has('MPEG2') || has('SEGMENT')) ? 'VCD'
+    : null
+  if (!kind) return null
+  const files = walkVideosSized(root).sort()
+  if (!files.length) return null
+  allowedSources.add(path.resolve(root))
+  return {
+    root,
+    kind,
+    label: `${kind} · ${root}`,
+    tracks: files.map((f) => ({ title: path.basename(f, path.extname(f)), url: streamer.streamUrl({ file: f }) })),
+  }
+}
+
+function scanDiscs() {
+  const out = []
+  for (const r of discRoots()) { const d = discAt(r); if (d) out.push(d) }
+  return out
+}
+
+ipcMain.handle('okara:detect-discs', () => scanDiscs())
+
+// Poll for a newly-inserted disc and notify the renderer (hardware-like).
+let knownDiscs = new Set()
+function pollDiscs() {
+  const discs = scanDiscs()
+  const roots = new Set(discs.map((d) => d.root))
+  for (const d of discs) {
+    if (!knownDiscs.has(d.root)) win?.webContents.send('okara:disc-inserted', d)
+  }
+  knownDiscs = roots
 }
 
 ipcMain.handle('okara:disc-pick', async (_e, kind) => {

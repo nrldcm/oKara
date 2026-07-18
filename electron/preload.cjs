@@ -26,6 +26,13 @@ contextBridge.exposeInMainWorld('okara', {
   // Direct play from a disc / ISO (live streaming transcode). Returns
   // { label, tracks: [{ title, url }] } or null if cancelled.
   discPick: (kind) => ipcRenderer.invoke('okara:disc-pick', kind),
+  // Detect inserted DVD/VCD discs in the optical/removable drives.
+  detectDiscs: () => ipcRenderer.invoke('okara:detect-discs'),
+  onDiscInserted: (cb) => {
+    const h = (_e, d) => cb(d)
+    ipcRenderer.on('okara:disc-inserted', h)
+    return () => ipcRenderer.removeListener('okara:disc-inserted', h)
+  },
 
   library: {
     info: () => ipcRenderer.invoke('okara:lib-info'),

@@ -13,6 +13,16 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.5] - 2026-07-18
+
+### Added
+
+- **Insert-and-play, like a hardware DVD player (desktop)** — okara now
+  auto-detects an inserted DVD/VCD in the optical/removable drive (polls for a
+  VIDEO_TS or MPEGAV volume). A banner pops up — **"DVD inserted — Play"** — and
+  one tap plays it directly via the live streaming transcode, no import needed.
+  A **Scan inserted disc** button on the Import tab does the same on demand.
+
 ## [0.9.4] - 2026-07-18
 
 ### Added
@@ -282,7 +292,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.4...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.5...HEAD
+[0.9.5]: https://github.com/nrldcm/okara/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/nrldcm/okara/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/nrldcm/okara/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/nrldcm/okara/compare/v0.9.1...v0.9.2

@@ -7,6 +7,7 @@ const { settings, load: loadSettings } = useSettings()
 const remote = useRemote()
 const pitch = usePitch()
 const importJob = useImportJob()
+const discState = useDisc()
 const bus = useRemoteBus()
 const { theme, init: initTheme, toggle: toggleTheme } = useTheme()
 
@@ -23,6 +24,7 @@ onMounted(async () => {
   initTheme()
   loadSettings()
   importJob.ensureListener() // keep convert progress alive across tab switches
+  discState.ensureListener() // auto-detect inserted DVD/VCD discs
   // When a background conversion finishes, pick up the new MP4s (covers a
   // refresh that happened mid-conversion).
   ;(window as any).okara?.library?.onImportDone?.(() => library.rescan())
@@ -34,6 +36,11 @@ function play(song: RuntimeSong) {
   queue.value = library.songs.value
   index.value = queue.value.findIndex((s) => s.id === song.id)
   nowPlaying.value = song
+}
+
+function playInsertedDisc() {
+  const d = discState.disc.value
+  if (d?.tracks?.length) { playDisc(d.tracks[0]); discState.dismiss() }
 }
 
 // Direct play of a disc/ISO track that live-streams from the host (no import).
@@ -229,6 +236,14 @@ async function onClear() {
       </div>
     </Teleport>
 
+    <div v-if="discState.showBanner.value" class="disc-banner">
+      <i class="bi bi-disc-fill" />
+      <span class="disc-banner__label"><strong>{{ discState.disc.value?.kind }} inserted</strong> — {{ discState.disc.value?.tracks.length }} track{{ discState.disc.value?.tracks.length === 1 ? '' : 's' }}</span>
+      <button class="disc-banner__play" @click="playInsertedDisc"><i class="bi bi-play-fill" /> Play</button>
+      <button class="disc-banner__browse" @click="view = 'import'">Browse</button>
+      <button class="disc-banner__close" @click="discState.dismiss()"><i class="bi bi-x-lg" /></button>
+    </div>
+
     <main class="content">
       <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" />
       <ImportView v-else-if="view === 'import'" @play-disc="playDisc" />
@@ -261,6 +276,15 @@ async function onClear() {
 .spin { display: inline-block; animation: okspin 1s linear infinite; }
 @keyframes okspin { to { transform: rotate(360deg); } }
 .content { flex: 1; overflow-y: auto; padding: 20px 22px; max-width: 1100px; width: 100%; margin: 0 auto; }
+.disc-banner { display: flex; align-items: center; gap: 12px; padding: 10px 18px;
+  background: var(--accent-grad); color: #fff; }
+.disc-banner .bi-disc-fill { font-size: 20px; }
+.disc-banner__label { flex: 1; font-size: 14px; }
+.disc-banner__play { border: none; background: rgba(255,255,255,.95); color: #111; border-radius: 999px;
+  padding: 7px 16px; font-weight: 700; cursor: pointer; }
+.disc-banner__browse { border: 1px solid rgba(255,255,255,.7); background: transparent; color: #fff;
+  border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.disc-banner__close { border: none; background: none; color: #fff; cursor: pointer; font-size: 15px; opacity: .85; }
 .stage-overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg); }
 .remote-modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, .55);
   display: flex; align-items: center; justify-content: center; padding: 20px; }

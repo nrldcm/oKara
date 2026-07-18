@@ -6,12 +6,21 @@ const library = useLibrary()
 const emit = defineEmits<{ playDisc: [{ title: string; url: string }] }>()
 
 // Direct play from a disc/ISO (live streaming transcode — no import)
-const discLabel = ref('')
-const discTracks = ref<{ title: string; url: string }[]>([])
+const disc = useDisc()
+const pickedTracks = ref<{ title: string; url: string }[]>([])
+// Show an inserted physical disc's tracks if there is one, else the last pick.
+const discTracks = computed(() => disc.disc.value?.tracks?.length ? disc.disc.value.tracks : pickedTracks.value)
+const scanMsg = ref('')
 
 async function browseDisc(kind: 'iso' | 'folder') {
   const r = await (window as any).okara?.discPick?.(kind)
-  if (r) { discLabel.value = r.label; discTracks.value = r.tracks }
+  if (r) pickedTracks.value = r.tracks
+}
+
+async function scanDisc() {
+  scanMsg.value = 'Scanning drives…'
+  const n = await disc.rescan()
+  scanMsg.value = n ? '' : 'No DVD/VCD disc found in the drive.'
 }
 
 const source = ref<SongSource>('UltraStar')
@@ -175,9 +184,11 @@ function onPick(e: Event) {
       <div class="play-now">
         <p class="play-now__lead"><i class="bi bi-play-circle" /> <strong>Play now</strong> without importing — plays the disc/ISO track directly (converts live as it plays):</p>
         <div class="dvd__btns">
+          <button @click="scanDisc"><i class="bi bi-disc-fill" /> Scan inserted disc</button>
           <button class="ghost" @click="browseDisc('iso')"><i class="bi bi-disc" /> Play from .iso</button>
           <button class="ghost" @click="browseDisc('folder')"><i class="bi bi-folder2-open" /> Play from disc folder</button>
         </div>
+        <p v-if="scanMsg" class="status">{{ scanMsg }}</p>
         <div v-if="discTracks.length" class="tracks">
           <div v-for="(t, i) in discTracks" :key="i" class="track" @click="emit('playDisc', t)">
             <span class="track__no">{{ i + 1 }}</span>
