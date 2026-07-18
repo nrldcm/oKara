@@ -13,6 +13,18 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.24] - 2026-07-18
+
+### Added
+
+- **"Find songbook on disc"** (Disc → Find songbook on disc) — inspects an
+  `.iso` and lists **every file** on it (not just the videos), previewing any
+  small text/index files (`.txt/.csv/.db/.dat/…`). This finds out, for your
+  actual disc, whether the song list (code/title/artist) is stored on the disc
+  or is paper-only. If an index file is found, share its preview and it can be
+  parsed to auto-fill the songbook; if none is found, the codes are entered
+  manually (the disc genuinely has no readable list).
+
 ## [0.9.23] - 2026-07-18
 
 ### Added
@@ -590,7 +602,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.23...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.24...HEAD
+[0.9.24]: https://github.com/nrldcm/okara/compare/v0.9.23...v0.9.24
 [0.9.23]: https://github.com/nrldcm/okara/compare/v0.9.22...v0.9.23
 [0.9.22]: https://github.com/nrldcm/okara/compare/v0.9.21...v0.9.22
 [0.9.21]: https://github.com/nrldcm/okara/compare/v0.9.20...v0.9.21

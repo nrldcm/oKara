@@ -258,6 +258,18 @@ async function openDisc(kind: 'iso' | 'folder') {
   if (r?.tracks?.length) discList.value = { label: r.label, tracks: r.tracks }
   else if (r) discMsg.value = 'No playable video tracks found.'
 }
+
+// Look inside a disc/ISO for a songbook index file (code/title/artist).
+const discInspection = ref<any>(null)
+async function inspectDisc() {
+  discMsg.value = 'Reading disc contents…'
+  discInspection.value = null
+  const r = await (window as any).okara?.discInspect?.()
+  discMsg.value = ''
+  if (!r) return
+  if (r.error) { discMsg.value = r.error; return }
+  discInspection.value = r
+}
 async function playDiscTrack(track: { title: string; src: unknown }) {
   const res = await (window as any).okara?.discStream?.(track.src)
   if (!res?.url) { discMsg.value = res?.error || 'Could not start playback.'; return }
@@ -404,8 +416,24 @@ async function onClear() {
             <button class="grad" @click="scanDisc"><i class="bi bi-disc-fill" /> Scan inserted disc</button>
             <button @click="openDisc('iso')"><i class="bi bi-disc" /> Open .iso</button>
             <button @click="openDisc('folder')"><i class="bi bi-folder2-open" /> Open disc folder</button>
+            <button @click="inspectDisc"><i class="bi bi-search" /> Find songbook on disc</button>
           </div>
           <p v-if="discMsg" class="disc-modal__msg">{{ discMsg }}</p>
+
+          <div v-if="discInspection" class="inspect">
+            <p class="inspect__lead">
+              <strong>{{ discInspection.files.length }} files</strong> on the disc.
+              <template v-if="discInspection.candidates.length">Found <strong>{{ discInspection.candidates.length }}</strong> possible index/text file(s) — a songbook may be here:</template>
+              <template v-else>No text/index file found — this disc's song list is likely paper-only, so codes/titles are entered manually.</template>
+            </p>
+            <div v-for="(c, i) in discInspection.candidates" :key="i" class="cand">
+              <div class="cand__head"><i class="bi bi-file-earmark-text" /> {{ c.path }} <span class="cand__size">({{ Math.round(c.size / 1024) }} KB)</span></div>
+              <pre class="cand__preview">{{ c.preview }}</pre>
+            </div>
+            <details class="inspect__all"><summary>All files ({{ discInspection.files.length }})</summary>
+              <pre class="cand__preview">{{ discInspection.files.map((f: any) => `${f.path}  —  ${Math.round(f.size/1024)} KB`).join('\n') }}</pre>
+            </details>
+          </div>
           <div v-if="discList" class="disc-tracks">
             <p class="disc-tracks__label">{{ discList.label }} — {{ discList.tracks.length }} track{{ discList.tracks.length === 1 ? '' : 's' }}</p>
             <div v-for="(t, i) in discList.tracks" :key="i" class="disc-track" @click="playDiscTrack(t)">
@@ -508,6 +536,15 @@ async function onClear() {
 .disc-track__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
 .disc-track__play { background: var(--accent-grad); color: #fff; border-radius: 999px; padding: 5px 12px;
   font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+.inspect { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+.inspect__lead { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0 0 10px; }
+.cand { margin-bottom: 10px; }
+.cand__head { font-size: 13px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.cand__size { color: var(--text-faint); font-weight: 400; }
+.cand__preview { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px;
+  font-size: 11px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin-top: 4px; }
+.inspect__all { margin-top: 8px; font-size: 13px; }
+.inspect__all summary { cursor: pointer; color: var(--text-muted); }
 
 @media (max-width: 560px) {
   .topbar { gap: 10px; padding: 10px 14px; }

@@ -188,6 +188,44 @@ ipcMain.handle('okara:disc-stream', (_e, srcArg) => {
   return { url: liveStreamer.streamUrl(src) }
 })
 
+// Inspect a disc/ISO for a songbook index: list every file (not just video),
+// and preview small text-like files that might contain code/title/artist. Lets
+// us find out if the song list actually lives on the disc.
+const TEXT_EXT = ['txt', 'csv', 'lst', 'idx', 'inf', 'ini', 'db', 'dat', 'lrc', 'xml', 'json', 'nfo', 'md']
+function looksTextual(buf) {
+  let printable = 0
+  const n = Math.min(buf.length, 4096)
+  for (let i = 0; i < n; i++) { const c = buf[i]; if (c === 9 || c === 10 || c === 13 || (c >= 32 && c < 127)) printable++ }
+  return n > 0 && printable / n > 0.85
+}
+ipcMain.handle('okara:disc-inspect', async () => {
+  const res = await dialog.showOpenDialog(win, {
+    title: 'Inspect a disc image (.iso) for a songbook index',
+    properties: ['openFile'],
+    filters: [{ name: 'Disc image', extensions: ['iso'] }],
+  })
+  if (res.canceled || !res.filePaths.length) return null
+  const isoPath = res.filePaths[0]
+  try {
+    const files = isoLib.listFiles(isoPath)
+    const candidates = []
+    for (const f of files) {
+      const e = (f.path.split('.').pop() || '').toLowerCase()
+      // Small, non-video files that might be an index — preview them.
+      if (f.size > 0 && f.size < 4 * 1024 * 1024 && (TEXT_EXT.includes(e) || f.size < 512 * 1024)) {
+        try {
+          const buf = isoLib.readBytes(isoPath, f.extent, f.size, 65536)
+          if (looksTextual(buf)) candidates.push({ path: f.path, size: f.size, preview: buf.toString('latin1').slice(0, 4000) })
+        } catch { /* skip */ }
+      }
+    }
+    return { iso: isoPath, files: files.map((f) => ({ path: f.path, size: f.size })), candidates }
+  } catch (e) {
+    log('disc-inspect failed:', isoPath, e)
+    return { error: String((e && e.message) || e) }
+  }
+})
+
 ipcMain.handle('okara:disc-pick', async (_e, kind) => {
   const isIso = kind === 'iso'
   const res = await dialog.showOpenDialog(win, {

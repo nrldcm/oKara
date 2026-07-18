@@ -95,6 +95,17 @@ function extractFile(isoPath, extent, size, destPath, onProgress) {
   })
 }
 
+/** Read a (small) file's bytes out of the ISO synchronously — for index files. */
+function readBytes(isoPath, extent, size, cap = 2 * 1024 * 1024) {
+  const n = Math.min(size, cap)
+  const fd = fs.openSync(isoPath, 'r')
+  try {
+    const buf = Buffer.alloc(n)
+    fs.readSync(fd, buf, 0, n, extent * SECTOR)
+    return buf
+  } finally { fs.closeSync(fd) }
+}
+
 // Video payloads on karaoke discs.
 const VIDEO_EXT = ['vob', 'dat', 'mpg', 'mpeg', 'm2v', 'mpv', 'avi', 'mp4', 'vro']
 
@@ -106,4 +117,4 @@ function videoFiles(isoPath) {
     .sort((a, b) => a.path.localeCompare(b.path))
 }
 
-module.exports = { listFiles, extractFile, videoFiles, VIDEO_EXT }
+module.exports = { listFiles, extractFile, readBytes, videoFiles, VIDEO_EXT }
