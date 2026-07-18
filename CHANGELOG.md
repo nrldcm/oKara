@@ -13,6 +13,18 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.23] - 2026-07-18
+
+### Added
+
+- **Songbook list view** — the Library now shows a proper songbook table
+  (**No. · Title · Artist · Actions**) by default, with a **list/grid toggle**.
+  Each row has **▶ Play**, **＋ Add to queue**, **✎ Edit** (set the code, title,
+  and artist from your paper songbook), and **✂ Map**. Double-click a row to
+  play. It's the karaoke-machine songbook look. (Disc video files don't carry
+  the code/title/artist — that lives on the paper songbook — so you fill those
+  in per song; then everything is searchable and dial-able.)
+
 ## [0.9.22] - 2026-07-18
 
 ### Changed
@@ -578,7 +590,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.22...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.23...HEAD
+[0.9.23]: https://github.com/nrldcm/okara/compare/v0.9.22...v0.9.23
 [0.9.22]: https://github.com/nrldcm/okara/compare/v0.9.21...v0.9.22
 [0.9.21]: https://github.com/nrldcm/okara/compare/v0.9.20...v0.9.21
 [0.9.20]: https://github.com/nrldcm/okara/compare/v0.9.19...v0.9.20

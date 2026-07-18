@@ -144,6 +144,13 @@ function playNumber(num?: number) {
   else bus.flash(`Song #${num} not found`)
 }
 
+function reserveSong(s: RuntimeSong) {
+  if (!nowPlaying.value) { play(s); return }
+  reserved.value.push(s)
+  syncReserved()
+  bus.flash(`Reserved: ${s.title}`)
+}
+
 function reserveNumber(num?: number) {
   const s = num != null ? library.findByNumber(num) : undefined
   if (!s) { bus.flash(`Song #${num} not found`); return }
@@ -360,7 +367,7 @@ async function onClear() {
 
     <main class="content">
       <div class="content__inner">
-        <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" @edit-meta="(p) => library.editMeta(p.id, p)" />
+        <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @reserve="reserveSong" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" @edit-meta="(p) => library.editMeta(p.id, p)" />
         <SettingsView v-else @clear="onClear" />
       </div>
     </main>

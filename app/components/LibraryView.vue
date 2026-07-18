@@ -2,9 +2,11 @@
 import type { RuntimeSong } from '~/composables/useLibrary'
 
 const props = defineProps<{ songs: RuntimeSong[] }>()
-const emit = defineEmits<{ play: [RuntimeSong]; remove: [string]; renumber: [string, number]; mapCues: [RuntimeSong]; editMeta: [{ id: string; number: number; title: string; artist: string }] }>()
+const emit = defineEmits<{ play: [RuntimeSong]; reserve: [RuntimeSong]; remove: [string]; renumber: [string, number]; mapCues: [RuntimeSong]; editMeta: [{ id: string; number: number; title: string; artist: string }] }>()
 
 const query = ref('')
+// Songbook-style list (default) vs. thumbnail grid.
+const mode = useState<'list' | 'grid'>('okara-lib-mode', () => 'list')
 type Field = 'all' | 'number' | 'title' | 'artist'
 const field = ref<Field>('all')
 const FIELDS: { value: Field; label: string }[] = [
@@ -70,13 +72,37 @@ function editDetails(s: RuntimeSong) {
         @click="field = f.value"
       >{{ f.label }}</button>
       <span class="filters__count">{{ filtered.length }} song{{ filtered.length === 1 ? '' : 's' }}</span>
+      <div class="view-toggle">
+        <button :class="{ active: mode === 'list' }" title="List" @click="mode = 'list'"><i class="bi bi-list-ul" /></button>
+        <button :class="{ active: mode === 'grid' }" title="Grid" @click="mode = 'grid'"><i class="bi bi-grid-3x3-gap-fill" /></button>
+      </div>
     </div>
 
     <p v-if="!filtered.length" class="empty">
-      No songs yet. Go to <strong>Import</strong> to add some.
+      No songs yet. Go to <strong>Settings → Import</strong> to add some.
     </p>
 
-    <div class="grid">
+    <!-- Songbook list: # code | Title | Artist | actions -->
+    <div v-else-if="mode === 'list'" class="songlist">
+      <div class="songlist__head">
+        <span class="c-no">No.</span><span class="c-title">Title</span>
+        <span class="c-artist">Artist</span><span class="c-act">Actions</span>
+      </div>
+      <div v-for="s in filtered" :key="s.id" class="songrow" @dblclick="emit('play', s)">
+        <span class="c-no">{{ s.number }}</span>
+        <span class="c-title" :title="s.title">{{ s.title }}</span>
+        <span class="c-artist" :title="s.artist">{{ s.artist }}</span>
+        <span class="c-act">
+          <button class="act play" title="Play now" @click="emit('play', s)"><i class="bi bi-play-fill" /></button>
+          <button class="act" title="Add to queue" @click="emit('reserve', s)"><i class="bi bi-plus-lg" /></button>
+          <button class="act" title="Edit number / title / artist" @click="editDetails(s)"><i class="bi bi-pencil-fill" /></button>
+          <button v-if="s.kind === 'video' && !s.clip && s.videoPath" class="act" title="Map songs inside this video" @click="emit('mapCues', s)"><i class="bi bi-scissors" /></button>
+          <button class="act danger" title="Remove" @click="emit('remove', s.id)"><i class="bi bi-x-lg" /></button>
+        </span>
+      </div>
+    </div>
+
+    <div v-else class="grid">
       <article v-for="s in filtered" :key="s.id" class="card" @click="emit('play', s)">
         <div class="thumb" :style="s.coverUrl ? { backgroundImage: `url(${s.coverUrl})` } : {}">
           <i v-if="!s.coverUrl" class="thumb__icon bi" :class="s.kind === 'video' ? 'bi-tv-fill' : 'bi-mic-fill'" />
@@ -108,6 +134,28 @@ function editDetails(s: RuntimeSong) {
   color: var(--text-muted); cursor: pointer; font-size: 13px; }
 .filter.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
 .filters__count { margin-left: auto; font-size: 12px; color: var(--text-faint); }
+.view-toggle { display: inline-flex; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+.view-toggle button { border: none; background: none; color: var(--text-muted); width: 30px; height: 26px; border-radius: 999px; cursor: pointer; }
+.view-toggle button.active { background: var(--accent-grad); color: #fff; }
+
+/* Songbook list */
+.songlist { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.songlist__head, .songrow { display: grid; grid-template-columns: 90px 1fr 1fr auto; gap: 12px; align-items: center; padding: 10px 16px; }
+.songlist__head { background: var(--surface-2); font-size: 12px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .04em; }
+.songrow { border-top: 1px solid var(--border); background: var(--surface); cursor: default; }
+.songrow:hover { background: var(--surface-2); }
+.c-no { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
+.c-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-artist { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-act { display: flex; gap: 6px; justify-content: flex-end; }
+.act { border: none; background: var(--surface-2); color: var(--text-muted); width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.act:hover { color: var(--text); }
+.act.play { background: var(--accent-grad); color: #fff; }
+.act.danger:hover { color: var(--danger); }
+@media (max-width: 600px) {
+  .songlist__head, .songrow { grid-template-columns: 54px 1fr auto; }
+  .songlist__head .c-artist, .songrow .c-artist { display: none; }
+}
 .empty { opacity: .6; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px; }
 .card { cursor: pointer; }
