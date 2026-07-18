@@ -13,6 +13,19 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.13] - 2026-07-18
+
+### Fixed
+
+- **Import filling up the C: drive (out-of-space failures)** — ISO tracks were
+  extracted to the system temp folder on **C:** before converting, even when the
+  library lived on another drive (e.g. **D:**). On a full C: drive this failed
+  with "no space left on device". Extraction now happens in a hidden
+  `.okara-tmp` folder **on the same drive as your library**, so the system drive
+  no longer bloats. Leftover scratch files are cleared on startup.
+- A disk-space failure now shows a **clear message** ("Not enough disk space on
+  your library drive…") instead of a confusing "nothing convertible found".
+
 ## [0.9.12] - 2026-07-18
 
 ### Added
@@ -415,7 +428,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.12...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.13...HEAD
+[0.9.13]: https://github.com/nrldcm/okara/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/nrldcm/okara/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/nrldcm/okara/compare/v0.9.10...v0.9.11
 [0.9.10]: https://github.com/nrldcm/okara/compare/v0.9.9...v0.9.10

@@ -3,7 +3,7 @@ const os = require('os')
 const path = require('path')
 const fs = require('fs')
 const { startRemoteServer } = require('./server.cjs')
-const { registerLibraryIpc, readConfig, writeConfig, libraryDir, uniqueDest } = require('./library.cjs')
+const { registerLibraryIpc, readConfig, writeConfig, libraryDir, libraryTemp, uniqueDest } = require('./library.cjs')
 const { startMediaServer } = require('./stream.cjs')
 const isoLib = require('./iso.cjs')
 const { transcode } = require('./transcode.cjs')
@@ -73,6 +73,12 @@ async function createWindow() {
 
   remote = await startRemote(readConfig().remotePort)
   streamer = await startMediaServer(() => [os.tmpdir(), libraryDir(), ...allowedSources])
+  // Clear leftover scratch files from a previous run (nothing is in use yet at
+  // launch), so temp extractions/prepared clips don't pile up on the drive.
+  try {
+    const t = libraryTemp()
+    for (const f of fs.readdirSync(t)) { try { fs.rmSync(path.join(t, f), { force: true, recursive: true }) } catch { /* */ } }
+  } catch { /* no temp yet */ }
   setInterval(pollDiscs, 3000) // auto-detect inserted discs, like a DVD player
 
   // Block all page reloads — a refresh would restart the app and abort an
@@ -198,7 +204,8 @@ ipcMain.handle('okara:disc-pick', async (_e, kind) => {
 let discTmpCount = 0
 ipcMain.handle('okara:disc-prepare', async (_e, srcArg) => {
   const src = srcArg || {}
-  const tmpBase = path.join(os.tmpdir(), `okara-play-${Date.now()}-${discTmpCount++}`)
+  // Extract/transcode on the library drive (usually more free space than C:).
+  const tmpBase = path.join(libraryTemp(), `okara-play-${Date.now()}-${discTmpCount++}`)
   let input = src.file
   try {
     if (src.iso) {
@@ -228,7 +235,7 @@ ipcMain.handle('okara:disc-materialize', async (_e, srcArg, title) => {
   try {
     let input = src.file
     if (src.iso) {
-      tmp = path.join(os.tmpdir(), `okara-mat-${Date.now()}-${discTmpCount++}.vob`)
+      tmp = path.join(libraryTemp(), `okara-mat-${Date.now()}-${discTmpCount++}.vob`)
       isoLib.extractFile(src.iso, src.extent, src.size, tmp)
       input = tmp
     }

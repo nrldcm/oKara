@@ -60,11 +60,22 @@ async function walkFiles(dir) {
   const out = []
   const items = await fsp.readdir(dir, { withFileTypes: true })
   for (const it of items) {
+    if (it.name.startsWith('.')) continue // skip hidden helpers (e.g. .okara-tmp)
     const p = path.join(dir, it.name)
     if (it.isDirectory()) out.push(...await walkFiles(p))
     else if (it.isFile()) out.push(p)
   }
   return out
+}
+
+// A scratch folder on the SAME drive as the library, for extracting ISO tracks
+// before transcoding — so extraction doesn't fill the system drive (C:) when
+// the library lives on another drive (D:). Hidden (dot-prefixed) so the song
+// scan skips it.
+function libraryTemp() {
+  const dir = path.join(libraryDir(), '.okara-tmp')
+  try { fs.mkdirSync(dir, { recursive: true }) } catch { /* falls back below */ }
+  return fs.existsSync(dir) ? dir : os.tmpdir()
 }
 
 function insideLibrary(p) {
@@ -146,8 +157,9 @@ async function importIsos(isoPaths, onProgress) {
   const conc = importConcurrency(total)
   const threadsPer = Math.max(1, Math.floor(importCores() / conc))
 
+  const scratch = libraryTemp()
   const runJob = async (job, slot) => {
-    const tmp = path.join(os.tmpdir(), `okara-${Date.now()}-${slot}-${job.i}.${ext(job.v.path)}`)
+    const tmp = path.join(scratch, `okara-${Date.now()}-${slot}-${job.i}.${ext(job.v.path)}`)
     const trackName = path.basename(job.dest)
     active.set(slot, { name: trackName, fraction: 0 })
     emit(trackName)
@@ -318,4 +330,4 @@ function registerLibraryIpc(getWindow) {
   })
 }
 
-module.exports = { registerLibraryIpc, libraryDir, uniqueDest, pathToFileURL, readConfig, writeConfig }
+module.exports = { registerLibraryIpc, libraryDir, libraryTemp, uniqueDest, pathToFileURL, readConfig, writeConfig }

@@ -4,6 +4,8 @@ import type { SongSource } from '~/utils/db'
 // switches and starting a song — the work runs in the Electron main process and
 // keeps going regardless of which view is mounted. State lives in useState
 // (app-wide singletons), and the native progress listener is registered once.
+const isSpace = (s: string) => /ENOSPC|no space left/i.test(s || '')
+
 export function useImportJob() {
   const active = useState('okara-import-active', () => false)
   const text = useState('okara-import-text', () => '')
@@ -13,8 +15,10 @@ export function useImportJob() {
   const message = useState<string | null>('okara-import-message', () => null)
   const failed = useState('okara-import-failed', () => false)
   const listening = useState('okara-import-listening', () => false)
+  const lastError = useState<string>('okara-import-last-error', () => '')
 
   function applyProgress(p: any) {
+    if (p.error) lastError.value = String(p.error)
     tracks.value = Array.isArray(p.tracks) ? p.tracks : []
     const doneN = p.index ?? 0
     text.value = p.error
@@ -51,17 +55,23 @@ export function useImportJob() {
     message.value = null
     text.value = 'Choose the disc image / files…'
     pct.value = 0
+    lastError.value = ''
     try {
       const count = await library.importDisc(kind, source)
       if (count > 0) {
         message.value = `Converted and imported ${count} track${count > 1 ? 's' : ''} into your library.`
+      } else if (isSpace(lastError.value)) {
+        message.value = 'Not enough disk space on your library drive. Free up space (or move the library to a bigger drive in Settings) and try again.'
+        failed.value = true
       } else {
         message.value = 'No video tracks were imported (cancelled, or nothing convertible found).'
         failed.value = true
       }
     } catch (e: any) {
       const detail = e?.message ? String(e.message).replace(/^Error:\s*/, '') : ''
-      message.value = detail ? `Conversion failed: ${detail}` : 'Conversion failed.'
+      message.value = isSpace(detail)
+        ? 'Not enough disk space on your library drive. Free up space and try again.'
+        : detail ? `Conversion failed: ${detail}` : 'Conversion failed.'
       failed.value = true
     } finally {
       active.value = false
