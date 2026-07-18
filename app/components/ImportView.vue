@@ -4,8 +4,9 @@ import { libraryFolderAvailable, canConvertDiscs } from '~/composables/useLibrar
 
 const library = useLibrary()
 
-const source = ref<SongSource>('UltraStar')
-const volumeLabel = ref('')
+// UltraStar songs (.txt) are auto-detected and get scoring; everything else is
+// tagged "Other" and can be relabelled per song, so no brand picker is needed.
+const source: SongSource = 'Other'
 const dragging = ref(false)
 const busy = ref(false)
 const result = ref<string | null>(null)
@@ -32,17 +33,8 @@ onMounted(async () => {
 })
 
 function importDisc(kind: 'iso' | 'dvd-video') {
-  job.runDisc(kind, source.value)
+  job.runDisc(kind, source)
 }
-
-const sources: { value: SongSource; label: string; hint: string }[] = [
-  { value: 'UltraStar', label: 'UltraStar', hint: '.txt + audio — has scoring' },
-  { value: 'Magic Sing', label: 'Magic Sing', hint: 'video files from DVD' },
-  { value: 'Platinum', label: 'Platinum', hint: 'video files from DVD' },
-  { value: 'MegaVision', label: 'MegaVision', hint: 'video files from DVD' },
-  { value: 'TJ Media', label: 'TJ Media', hint: 'video files from DVD' },
-  { value: 'Other', label: 'Other', hint: 'any audio/video' },
-]
 
 function report(count: number) {
   if (count > 0) {
@@ -70,11 +62,11 @@ async function run(fn: () => Promise<number>) {
 
 function handle(files: File[]) {
   if (!files.length) return
-  run(() => library.importFiles(files, source.value, volumeLabel.value))
+  run(() => library.importFiles(files, source))
 }
 
 function pickNative(kind: 'files' | 'folder') {
-  run(() => library.importFromPicker(kind, source.value, volumeLabel.value))
+  run(() => library.importFromPicker(kind, source))
 }
 
 function onDrop(e: DragEvent) {
@@ -91,32 +83,11 @@ function onPick(e: Event) {
   <section class="imp">
     <h1>Import songs</h1>
     <p class="lead">
-      Drag files here or pick them below. For karaoke machine DVDs
-      (Magic Sing / Platinum / MegaVision / TJ Media), import their
-      <strong>video files</strong> — they play back with voice on/off. For full
-      scoring, use an <strong>UltraStar</strong> song (.txt + audio).
+      Add karaoke discs (below) or drag in files. Songs go into your one big
+      library — mix any brand (MegaVision / Platinum / Magic Sing / TJ Media).
+      Set each song's number/title/artist in the Library (✎). For full scoring,
+      add an <strong>UltraStar</strong> song (.txt + audio).
     </p>
-
-    <div class="field">
-      <span>Source / brand</span>
-      <div class="chips">
-        <button
-          v-for="s in sources"
-          :key="s.value"
-          class="chip"
-          :class="{ active: source === s.value }"
-          @click="source = s.value"
-        >
-          <strong>{{ s.label }}</strong>
-          <em>{{ s.hint }}</em>
-        </button>
-      </div>
-    </div>
-
-    <div class="field">
-      <span>Volume label (optional) — prefixes song titles, e.g. "MegaVision Vol 3 – AVSEQ01"</span>
-      <input v-model="volumeLabel" class="label-input" placeholder="e.g. MegaVision Vol 3" maxlength="40" />
-    </div>
 
     <div
       class="drop"

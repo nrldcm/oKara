@@ -13,6 +13,15 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.25] - 2026-07-18
+
+### Changed
+
+- **Simpler Import** — removed the redundant **Source / brand** picker and the
+  **Volume label** field. Everything goes into one big library; UltraStar songs
+  (`.txt`) are auto-detected for scoring, and you set each song's
+  number/title/artist (and brand, if you want) in the Library with **✎**.
+
 ## [0.9.24] - 2026-07-18
 
 ### Added
@@ -602,7 +611,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.24...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.25...HEAD
+[0.9.25]: https://github.com/nrldcm/okara/compare/v0.9.24...v0.9.25
 [0.9.24]: https://github.com/nrldcm/okara/compare/v0.9.23...v0.9.24
 [0.9.23]: https://github.com/nrldcm/okara/compare/v0.9.22...v0.9.23
 [0.9.22]: https://github.com/nrldcm/okara/compare/v0.9.21...v0.9.22
