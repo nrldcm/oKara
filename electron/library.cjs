@@ -77,35 +77,80 @@ const ext = (p) => (p.split('.').pop() || '').toLowerCase()
  * Import DVD/VCD .iso files: extract each video track, transcode it to MP4 in
  * the library folder, and report progress. Returns library entries.
  */
+// How many tracks to transcode at once. ffmpeg itself is multi-threaded, so we
+// keep the pool modest to avoid oversubscribing the CPU while still finishing a
+// multi-track disc far faster than one-at-a-time.
+function importConcurrency(jobCount) {
+  const cores = os.cpus()?.length || 2
+  return Math.max(1, Math.min(4, Math.floor(cores / 2), jobCount))
+}
+
 async function importIsos(isoPaths, onProgress) {
   const dir = libraryDir()
   const out = []
   // First tally the work so progress can span all tracks across all discs.
   const jobs = []
+  const reserved = new Set() // dest names claimed up front so parallel workers never collide
   for (const isoPath of isoPaths) {
     let vids = []
     try { vids = iso.videoFiles(isoPath) } catch { vids = [] }
     const label = path.parse(isoPath).name
-    vids.forEach((v, i) => jobs.push({ isoPath, v, label, i }))
+    vids.forEach((v, i) => {
+      // Pre-assign each track's library destination sequentially (single
+      // thread) so concurrent transcodes can't both pick the same filename.
+      let dest = uniqueDest(dir, `${label}-${String(i + 1).padStart(2, '0')}.mp4`)
+      while (reserved.has(dest)) {
+        const p = path.parse(dest)
+        dest = uniqueDest(dir, `${p.name} (x)${p.ext}`)
+      }
+      reserved.add(dest)
+      jobs.push({ isoPath, v, label, i, dest })
+    })
   }
   const total = jobs.length
+  if (!total) return out
+
+  // Aggregate progress across parallel jobs: overall = (done + Σ active
+  // fractions) / total, matching the renderer's (index + fraction)/total.
   let done = 0
-  for (const job of jobs) {
-    const tmp = path.join(os.tmpdir(), `okara-${Date.now()}-${job.i}.${ext(job.v.path)}`)
+  const active = new Map() // job index → current fraction 0..1
+  const emit = (name, error) => onProgress?.({
+    index: done,
+    total,
+    name,
+    error,
+    fraction: [...active.values()].reduce((a, b) => a + b, 0),
+  })
+
+  const runJob = async (job, slot) => {
+    const tmp = path.join(os.tmpdir(), `okara-${Date.now()}-${slot}-${job.i}.${ext(job.v.path)}`)
+    active.set(slot, 0)
     try {
       iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
-      const dest = uniqueDest(dir, `${job.label}-${String(job.i + 1).padStart(2, '0')}.mp4`)
-      await transcode(tmp, dest, (f) => {
-        onProgress?.({ index: done, total, name: path.basename(dest), fraction: f })
-      })
-      out.push({ name: path.basename(dest), path: dest })
+      await transcode(tmp, job.dest, (f) => { active.set(slot, f); emit(path.basename(job.dest)) })
+      out.push({ name: path.basename(job.dest), path: job.dest })
     } catch (e) {
-      onProgress?.({ index: done, total, name: path.basename(job.v.path), error: String(e && e.message || e) })
+      // Drop the truncated output so a failed track never lands in the library.
+      try { await fsp.unlink(job.dest) } catch { /* not created */ }
+      emit(path.basename(job.v.path), String(e && e.message || e))
     } finally {
       try { await fsp.unlink(tmp) } catch { /* already gone */ }
+      active.delete(slot)
       done++
+      emit(`${total - done} track${total - done === 1 ? '' : 's'} left`)
     }
   }
+
+  // Fixed pool of workers pulling from the shared job list.
+  const conc = importConcurrency(total)
+  let next = 0
+  const worker = async (slot) => {
+    while (next < jobs.length) {
+      const job = jobs[next++]
+      await runJob(job, slot)
+    }
+  }
+  await Promise.all(Array.from({ length: conc }, (_, s) => worker(s)))
   return out
 }
 
@@ -231,4 +276,4 @@ function registerLibraryIpc(getWindow) {
   })
 }
 
-module.exports = { registerLibraryIpc, libraryDir, pathToFileURL, readConfig, writeConfig }
+module.exports = { registerLibraryIpc, libraryDir, uniqueDest, pathToFileURL, readConfig, writeConfig }

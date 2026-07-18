@@ -3,10 +3,16 @@ const os = require('os')
 const path = require('path')
 const fs = require('fs')
 const { startRemoteServer } = require('./server.cjs')
-const { registerLibraryIpc, readConfig, writeConfig, libraryDir } = require('./library.cjs')
+const { registerLibraryIpc, readConfig, writeConfig, libraryDir, uniqueDest } = require('./library.cjs')
 const { startMediaServer } = require('./stream.cjs')
 const isoLib = require('./iso.cjs')
 const { transcode } = require('./transcode.cjs')
+
+// Keep the app alive if a background job (transcode, disc scan, socket) throws
+// asynchronously — a single failed track should never take down the whole app
+// (and lose the queue). Errors are logged, not fatal.
+process.on('uncaughtException', (err) => { console.error('uncaughtException:', err) })
+process.on('unhandledRejection', (reason) => { console.error('unhandledRejection:', reason) })
 
 let win = null
 let remote = null
@@ -194,6 +200,36 @@ ipcMain.handle('okara:disc-prepare', async (_e, srcArg) => {
     return { url: streamer.fileUrl(out) }
   } catch (e) {
     return { error: String((e && e.message) || e) }
+  }
+})
+
+// Materialize a disc/ISO track into the LIBRARY folder (permanent): transcode
+// once to a real MP4 so it survives restarts and never re-converts. Returns
+// { path } (the library file). Used when a disc-ref library song is first
+// played. Falls back to disc-prepare (temp) only if this fails.
+const safeName = (s) => String(s || 'track').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80) || 'track'
+ipcMain.handle('okara:disc-materialize', async (_e, srcArg, title) => {
+  const src = srcArg || {}
+  let tmp = null
+  let dest = null
+  try {
+    let input = src.file
+    if (src.iso) {
+      tmp = path.join(os.tmpdir(), `okara-mat-${Date.now()}-${discTmpCount++}.vob`)
+      isoLib.extractFile(src.iso, src.extent, src.size, tmp)
+      input = tmp
+    }
+    if (!input || !fs.existsSync(input)) throw new Error('Track not found')
+    dest = uniqueDest(libraryDir(), `${safeName(title)}.mp4`)
+    await transcode(input, dest, (f) => win?.webContents.send('okara:disc-progress', { fraction: f }))
+    return { path: dest }
+  } catch (e) {
+    // A failed transcode leaves a truncated file inside the library — remove it
+    // so it never shows up as a broken "song".
+    if (dest) { try { fs.unlinkSync(dest) } catch { /* not created */ } }
+    return { error: String((e && e.message) || e) }
+  } finally {
+    if (tmp) { try { fs.unlinkSync(tmp) } catch { /* */ } }
   }
 })
 

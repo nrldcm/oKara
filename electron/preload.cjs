@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld('okara', {
   // play (or { error }), reporting progress on onDiscProgress.
   discPick: (kind) => ipcRenderer.invoke('okara:disc-pick', kind),
   discPrepare: (src) => ipcRenderer.invoke('okara:disc-prepare', src),
+  // Transcode a disc/ISO track into the library folder (permanent) and return
+  // { path } — used the first time a disc-ref library song is played.
+  discMaterialize: (src, title) => ipcRenderer.invoke('okara:disc-materialize', src, title),
   onDiscProgress: (cb) => {
     const h = (_e, p) => cb(p)
     ipcRenderer.on('okara:disc-progress', h)

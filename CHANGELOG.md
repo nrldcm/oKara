@@ -20,12 +20,32 @@ _Nothing yet._
 - **App version is now shown** — in the window title (`okara 0.9.9 — open
   karaoke`) and at the very bottom of **Settings** (`okara version 0.9.9`), so
   you can always tell which build you're running.
+- **"Play from .iso" now adds the tracks to your Library** — the moment you
+  open an ISO its tracks appear in the Library (searchable by number/title) and
+  in the phone remote's songbook, so you can dial or queue them like any song.
+  They stay lazy: each track converts to MP4 only the first time it's played,
+  and that converted file is saved permanently in your library folder (survives
+  restart, never re-converts). Re-opening the same ISO won't create duplicates.
+- **Queue restore point** — the reserved queue is saved continuously, so if the
+  app is closed or crashes it comes back on next launch. No need to re-add
+  everything you had lined up.
 
 ### Changed
 
+- **Import .iso is much faster** — tracks now transcode **in parallel** (a
+  bounded pool sized to your CPU) instead of one at a time, so a multi-track
+  disc finishes far sooner. Progress reflects the whole batch.
 - Pressing **Play** on a disc/ISO track on an out-of-date build now shows a
   clear "update to v0.9.8+" message instead of silently doing nothing, and the
   "Play now" hint reflects the prepare-then-play flow (v0.9.8).
+
+### Fixed
+
+- The desktop app no longer hard-crashes on an unexpected background error
+  (a bad track, a dropped socket) — such errors are logged and the app (and
+  your queue) keep running.
+- A failed disc/ISO conversion no longer leaves a broken, half-written file
+  behind in the library folder.
 
 ## [0.9.8] - 2026-07-18
 

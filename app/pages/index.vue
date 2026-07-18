@@ -30,13 +30,46 @@ onMounted(async () => {
   // refresh that happened mid-conversion).
   ;(window as any).okara?.library?.onImportDone?.(() => library.rescan())
   await library.load()
+  restoreQueue() // bring back a queue left over from a previous close/crash
   await remote.init()
 })
 
-function play(song: RuntimeSong) {
+// A disc/ISO library song has no MP4 yet — produce it (transcode to the
+// library folder, permanent) on first play, then it plays like any song.
+async function resolvePlayable(song: RuntimeSong): Promise<RuntimeSong | null> {
+  if (!song?.disc || song.videoUrl) return song
+  const okara = (window as any).okara
+  if (!okara?.discMaterialize && !okara?.discPrepare) {
+    prepError.value = 'This build is out of date. Update to okara v0.9.8+ to play disc/ISO tracks.'
+    return null
+  }
+  preparing.value = true
+  prepPct.value = 0
+  prepError.value = ''
+  try {
+    if (okara.discMaterialize) {
+      const res = await okara.discMaterialize(song.disc, song.title)
+      if (res?.path) { await library.markMaterialized(song.id, res.path); return song }
+      // On error, fall through to the temp path rather than aborting.
+    }
+    // Fallback: a temporary prepared file (not permanent).
+    if (okara.discPrepare) {
+      const res = await okara.discPrepare(song.disc)
+      if (res?.url) { song.videoUrl = res.url; return song }
+      prepError.value = res?.error || 'Could not prepare this track.'
+    }
+    return null
+  } finally {
+    preparing.value = false
+  }
+}
+
+async function play(song: RuntimeSong) {
+  const resolved = await resolvePlayable(song)
+  if (!resolved) return
   queue.value = library.songs.value
-  index.value = queue.value.findIndex((s) => s.id === song.id)
-  nowPlaying.value = song
+  index.value = queue.value.findIndex((s) => s.id === resolved.id)
+  nowPlaying.value = resolved
 }
 
 function playInsertedDisc() {
@@ -51,6 +84,13 @@ const prepPct = ref(0)
 const prepError = ref('')
 
 async function playDisc(track: { title: string; src: unknown }) {
+  // ISO tracks are auto-added to the library — if this one is there, play it
+  // through the library path so it materializes (permanent) and persists.
+  const src = (track.src || {}) as { iso?: string; extent?: number; file?: string }
+  const libId = src.iso ? `disc:${src.iso}#${src.extent}` : src.file ? `disc:${src.file}` : null
+  const libSong = libId ? library.songs.value.find((s) => s.id === libId) : null
+  if (libSong) { await play(libSong); return }
+
   const okara = (window as any).okara
   // Older builds have no discPrepare — tell the user to update instead of
   // doing nothing when Play is pressed.
@@ -84,17 +124,25 @@ async function playDisc(track: { title: string; src: unknown }) {
   }
 }
 
-function playNext() {
-  if (reserved.value.length) { nowPlaying.value = reserved.value.shift()!; syncReserved(); return }
+async function playNext() {
+  if (reserved.value.length) {
+    const next = reserved.value.shift()!
+    syncReserved()
+    const resolved = await resolvePlayable(next)
+    if (resolved) nowPlaying.value = resolved
+    return
+  }
   if (!queue.value.length) return
   index.value = (index.value + 1) % queue.value.length
-  nowPlaying.value = queue.value[index.value]
+  const resolved = await resolvePlayable(queue.value[index.value])
+  if (resolved) nowPlaying.value = resolved
 }
 
-function playPrev() {
+async function playPrev() {
   if (!queue.value.length) return
   index.value = (index.value - 1 + queue.value.length) % queue.value.length
-  nowPlaying.value = queue.value[index.value]
+  const resolved = await resolvePlayable(queue.value[index.value])
+  if (resolved) nowPlaying.value = resolved
 }
 
 function stop() {
@@ -126,6 +174,32 @@ function reservedPayload() {
 
 function syncReserved() {
   bus.state.value = { ...bus.state.value, reserved: reserved.value.length, reservedList: reservedPayload() }
+  persistQueue()
+}
+
+// Restore point: keep the queue (and current song) in localStorage so a crash
+// or close doesn't lose what was lined up — no need to re-add everything.
+const QUEUE_KEY = 'okara-queue-v1'
+function persistQueue() {
+  if (!import.meta.client) return
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify({
+      reserved: reserved.value.map((s) => s.id),
+      now: nowPlaying.value?.id ?? null,
+    }))
+  } catch { /* storage full / unavailable */ }
+}
+function restoreQueue() {
+  if (!import.meta.client) return
+  try {
+    const raw = localStorage.getItem(QUEUE_KEY)
+    if (!raw) return
+    const data = JSON.parse(raw) as { reserved?: string[] }
+    const byId = new Map(library.songs.value.map((s) => [s.id, s]))
+    const restored = (data.reserved || []).map((id) => byId.get(id)).filter(Boolean) as RuntimeSong[]
+    if (restored.length) { reserved.value = restored; syncReserved() }
+    // Playback is not auto-resumed — only the queue is restored.
+  } catch { /* corrupt payload */ }
 }
 
 function removeReserved(i?: number) {
@@ -153,6 +227,7 @@ watch(nowPlaying, (s) => {
     reserved: reserved.value.length,
     reservedList: reservedPayload(),
   }
+  persistQueue()
 })
 
 // Publish the songbook (number/title/artist) to remotes so phones can browse

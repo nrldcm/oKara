@@ -22,6 +22,10 @@ export interface StoredSong {
   videoPath?: string
   coverPath?: string
   paths?: string[]
+  // Lazy disc/ISO reference: the song exists in the library and is searchable,
+  // but its playable MP4 is produced on first play. Cleared once materialized
+  // to a real videoPath.
+  disc?: { iso?: string; extent?: number; size?: number; file?: string }
 }
 
 const DB_NAME = 'okara'

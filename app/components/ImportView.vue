@@ -14,7 +14,18 @@ const scanMsg = ref('')
 
 async function browseDisc(kind: 'iso' | 'folder') {
   const r = await (window as any).okara?.discPick?.(kind)
-  if (r) pickedTracks.value = r.tracks
+  if (!r) return
+  pickedTracks.value = r.tracks
+  // ISO tracks live on disk at a stable path — add them to the library so they
+  // are searchable (by #/title) and appear in the remote songbook right away.
+  // They transcode on first play. (A folder pick may be a mounted disc that
+  // disappears on eject, so it stays play-only.)
+  if (kind === 'iso' && r.tracks?.length) {
+    try {
+      const added = await library.addDiscTracks(r.tracks, r.label)
+      if (added) scanMsg.value = `Added ${added} track${added > 1 ? 's' : ''} to your Library — searchable now.`
+    } catch { /* non-fatal */ }
+  }
 }
 
 async function scanDisc() {
