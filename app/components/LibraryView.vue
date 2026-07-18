@@ -70,7 +70,7 @@ function editNumber(s: RuntimeSong) {
           <i v-if="!s.coverUrl" class="thumb__icon bi" :class="s.kind === 'video' ? 'bi-tv-fill' : 'bi-mic-fill'" />
           <span class="thumb__badge" :class="{ score: s.hasScoring }">{{ badge(s) }}</span>
           <button class="thumb__num" title="Edit song number" @click.stop="editNumber(s)">#{{ s.number }} <i class="bi bi-pencil-fill" /></button>
-          <button v-if="s.kind === 'video' && !s.clip" class="map" title="Map songs inside this video" @click.stop="emit('mapCues', s)"><i class="bi bi-scissors" /></button>
+          <button v-if="s.kind === 'video' && !s.clip && s.videoPath" class="map" title="Map songs inside this video" @click.stop="emit('mapCues', s)"><i class="bi bi-scissors" /></button>
           <button class="del" title="Remove" @click.stop="emit('remove', s.id)"><i class="bi bi-x-lg" /></button>
         </div>
         <div class="meta">

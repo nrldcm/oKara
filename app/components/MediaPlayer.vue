@@ -69,7 +69,11 @@ function onEnded() {
 const clipStart = computed(() => props.song.clip?.startSec ?? 0)
 function seekToStart() {
   const el = mediaEl.value
-  if (el && clipStart.value > 0) { try { el.currentTime = clipStart.value } catch { /* not seekable yet */ } }
+  if (!el) return
+  if (clipStart.value > 0) { try { el.currentTime = clipStart.value } catch { /* not seekable yet */ } }
+  // For a clip we hold playback until metadata is ready, then start here — so
+  // there's no flash of the file's beginning before the seek.
+  if (props.autoplay && clipStart.value > 0) el.play().catch(() => {})
 }
 function onTimeUpdate() {
   const end = props.song.clip?.endSec
@@ -90,8 +94,10 @@ const offCommand = bus.onCommand((c) => {
 })
 
 onMounted(() => {
-  // Auto-start so a queued song plays immediately when it comes up.
-  if (props.autoplay) nextTick(() => { mediaEl.value?.play().catch(() => {}) })
+  // Auto-start so a queued song plays immediately when it comes up. For a clip
+  // that starts mid-file, playback is started in seekToStart (after the seek)
+  // to avoid a flash of the file's beginning.
+  if (props.autoplay && clipStart.value === 0) nextTick(() => { mediaEl.value?.play().catch(() => {}) })
 })
 
 // A clip song shares its file with others; when the song changes to a different

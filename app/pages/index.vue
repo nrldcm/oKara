@@ -67,7 +67,8 @@ async function resolvePlayable(song: RuntimeSong): Promise<RuntimeSong | null> {
 async function play(song: RuntimeSong) {
   const resolved = await resolvePlayable(song)
   if (!resolved) return
-  queue.value = library.songs.value
+  // Exclude hidden clip-parents so Next/Prev never lands on a whole merged video.
+  queue.value = library.songs.value.filter((s) => !s.clipParent)
   index.value = queue.value.findIndex((s) => s.id === resolved.id)
   nowPlaying.value = resolved
 }

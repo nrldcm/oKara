@@ -346,13 +346,18 @@ export function useLibrary() {
     cues: { number: number; title: string; artist: string; startSec: number }[],
   ): Promise<number> {
     if (!parent.videoPath || !cues.length) return 0
+    const prefix = `clip:${parent.id}#`
+    // Re-mapping replaces the previous cues: drop all existing clips of this
+    // parent first so no stale clip is orphaned.
+    for (const s of songs.value.filter((s) => s.id.startsWith(prefix))) await dbDelete(s.id)
     const sorted = [...cues].sort((a, b) => a.startSec - b.startSec)
     const fresh: StoredSong[] = []
     for (let i = 0; i < sorted.length; i++) {
       const c = sorted[i]
       const endSec = i + 1 < sorted.length ? sorted[i + 1].startSec : undefined
       fresh.push({
-        id: `clip:${parent.id}#${Math.round(c.startSec)}`,
+        // Centisecond precision so two nearby cues never collide on one id.
+        id: `${prefix}${Math.round(c.startSec * 100)}`,
         number: c.number,
         title: c.title || `Track ${i + 1}`,
         artist: c.artist || 'Unknown',
@@ -365,14 +370,14 @@ export function useLibrary() {
       })
     }
     for (const s of fresh) await dbPut(s)
-    // Flag the parent so the grid can hide it (its clips are the real songs).
+    // Flag the parent so the grid/songbook can hide it (its clips are the real songs).
     const p = songs.value.find((s) => s.id === parent.id)
     if (p) {
       p.clipParent = true
       const { audioUrl, videoUrl, coverUrl, ...stored } = p
       await dbPut(stored)
     }
-    songs.value = [...fresh.map(toRuntime), ...songs.value.filter((s) => !fresh.some((f) => f.id === s.id))]
+    songs.value = [...fresh.map(toRuntime), ...songs.value.filter((s) => !s.id.startsWith(prefix))]
     return fresh.length
   }
 
@@ -390,7 +395,9 @@ export function useLibrary() {
   }
 
   function findByNumber(num: number): RuntimeSong | undefined {
-    return songs.value.find((s) => s.number === num)
+    // Never resolve to a hidden clip-parent (the whole merged video); its clips
+    // carry the real dial numbers.
+    return songs.value.find((s) => s.number === num && !s.clipParent)
   }
 
   async function remove(id: string) {
