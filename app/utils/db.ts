@@ -26,6 +26,14 @@ export interface StoredSong {
   // but its playable MP4 is produced on first play. Cleared once materialized
   // to a real videoPath.
   disc?: { iso?: string; extent?: number; size?: number; file?: string }
+  // Cue point: this song is a SEGMENT of a bigger video (many songs merged into
+  // one file). Playback seeks to startSec and ends at endSec, so one file holds
+  // many searchable songs — karaoke-machine style. All clips of a file share
+  // its videoPath.
+  clip?: { startSec: number; endSec?: number }
+  // Marks the whole-video "parent" that clips were mapped from, so it can be
+  // hidden from the song grid (its clips are the real entries).
+  clipParent?: boolean
 }
 
 const DB_NAME = 'okara'

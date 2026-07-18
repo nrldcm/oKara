@@ -53,9 +53,28 @@ function onPause() {
   bus.state.value = { ...bus.state.value, playing: false }
 }
 
+// One-shot: timeupdate fires several times per second, so guard against
+// emitting 'ended' more than once (which would skip queued songs). The player
+// remounts per song (keyed by id), so this resets for each song.
+let advanced = false
 function onEnded() {
+  if (advanced) return
+  advanced = true
   bus.state.value = { ...bus.state.value, playing: false }
   emit('ended')
+}
+
+// Cue-point clip: this song may be one segment of a bigger merged video. Start
+// at clip.startSec and stop at clip.endSec (→ next in queue).
+const clipStart = computed(() => props.song.clip?.startSec ?? 0)
+function seekToStart() {
+  const el = mediaEl.value
+  if (el && clipStart.value > 0) { try { el.currentTime = clipStart.value } catch { /* not seekable yet */ } }
+}
+function onTimeUpdate() {
+  const end = props.song.clip?.endSec
+  const el = mediaEl.value
+  if (end != null && el && !advanced && el.currentTime >= end) { el.pause(); onEnded() }
 }
 
 const offCommand = bus.onCommand((c) => {
@@ -65,7 +84,7 @@ const offCommand = bus.onCommand((c) => {
     case 'play': onPlay(); el.play().catch(() => {}); break
     case 'pause': el.pause(); break
     case 'toggle': el.paused ? (onPlay(), el.play().catch(() => {})) : el.pause(); break
-    case 'restart': el.currentTime = 0; onPlay(); el.play().catch(() => {}); break
+    case 'restart': el.currentTime = clipStart.value; onPlay(); el.play().catch(() => {}); break
     case 'volume': el.volume = Math.min(1, Math.max(0, c.value ?? 1)); break
   }
 })
@@ -74,6 +93,10 @@ onMounted(() => {
   // Auto-start so a queued song plays immediately when it comes up.
   if (props.autoplay) nextTick(() => { mediaEl.value?.play().catch(() => {}) })
 })
+
+// A clip song shares its file with others; when the song changes to a different
+// clip (or the same file), jump to the new start time.
+watch(() => props.song.id, () => nextTick(seekToStart))
 
 onBeforeUnmount(() => { offCommand(); ctx?.close().catch(() => {}) })
 
@@ -95,10 +118,10 @@ const channelLabels: Record<string, string> = {
     </header>
 
     <div class="stage">
-      <video v-if="isVideo" ref="mediaEl" :src="props.song.videoUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" />
+      <video v-if="isVideo" ref="mediaEl" :src="props.song.videoUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" @loadedmetadata="seekToStart" @timeupdate="onTimeUpdate" />
       <div v-else class="audio-stage">
         <div class="disc"><i class="bi bi-music-note-beamed" /></div>
-        <audio ref="mediaEl" :src="props.song.audioUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" />
+        <audio ref="mediaEl" :src="props.song.audioUrl" controls @play="onPlay" @pause="onPause" @ended="onEnded" @loadedmetadata="seekToStart" @timeupdate="onTimeUpdate" />
       </div>
     </div>
 

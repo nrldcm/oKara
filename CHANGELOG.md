@@ -13,6 +13,20 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.17] - 2026-07-18
+
+### Added
+
+- **Map songs inside one big video (cue points)** — for a karaoke video that
+  holds **many songs in one file**, you can now split it into individual,
+  searchable songs, like a karaoke machine. On a video in the Library, click the
+  **scissors** button to open the mapper: play the video, click **Mark song
+  start** each time a song begins, then type the **number, title, and artist**
+  from your songbook. Saved cues become normal library songs — searchable by
+  number/title/artist and queueable from the phone remote — and each **plays
+  from its start time and stops when the next song begins**. The original
+  whole-video entry is hidden once mapped (its songs are the real entries).
+
 ## [0.9.16] - 2026-07-18
 
 ### Fixed
@@ -466,7 +480,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.16...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.17...HEAD
+[0.9.17]: https://github.com/nrldcm/okara/compare/v0.9.16...v0.9.17
 [0.9.16]: https://github.com/nrldcm/okara/compare/v0.9.15...v0.9.16
 [0.9.15]: https://github.com/nrldcm/okara/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/nrldcm/okara/compare/v0.9.13...v0.9.14

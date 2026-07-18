@@ -335,6 +335,47 @@ export function useLibrary() {
     return song.videoUrl
   }
 
+  /**
+   * Map songs inside one big video: create a searchable library song per cue
+   * (number/title/artist from the songbook), each a clip of the parent's
+   * videoPath that plays from its start time. The parent whole-video is kept
+   * (so the file stays tracked) but flagged clipParent to hide it from the grid.
+   */
+  async function addClips(
+    parent: RuntimeSong,
+    cues: { number: number; title: string; artist: string; startSec: number }[],
+  ): Promise<number> {
+    if (!parent.videoPath || !cues.length) return 0
+    const sorted = [...cues].sort((a, b) => a.startSec - b.startSec)
+    const fresh: StoredSong[] = []
+    for (let i = 0; i < sorted.length; i++) {
+      const c = sorted[i]
+      const endSec = i + 1 < sorted.length ? sorted[i + 1].startSec : undefined
+      fresh.push({
+        id: `clip:${parent.id}#${Math.round(c.startSec)}`,
+        number: c.number,
+        title: c.title || `Track ${i + 1}`,
+        artist: c.artist || 'Unknown',
+        kind: 'video',
+        source: parent.source,
+        hasScoring: false,
+        createdAt: Date.now(),
+        videoPath: parent.videoPath,
+        clip: { startSec: c.startSec, endSec },
+      })
+    }
+    for (const s of fresh) await dbPut(s)
+    // Flag the parent so the grid can hide it (its clips are the real songs).
+    const p = songs.value.find((s) => s.id === parent.id)
+    if (p) {
+      p.clipParent = true
+      const { audioUrl, videoUrl, coverUrl, ...stored } = p
+      await dbPut(stored)
+    }
+    songs.value = [...fresh.map(toRuntime), ...songs.value.filter((s) => !fresh.some((f) => f.id === s.id))]
+    return fresh.length
+  }
+
   /** Change a song's dial number (to match a DVD songbook). */
   async function renumber(id: string, number: number): Promise<string | null> {
     const taken = songs.value.find((s) => s.number === number && s.id !== id)
@@ -378,7 +419,7 @@ export function useLibrary() {
     await load()
   }
 
-  return { songs, loaded, load, rescan: scanFolder, importFiles, importFromPicker, importDisc, addDiscTracks, markMaterialized, remove, clearAll, findByNumber, renumber }
+  return { songs, loaded, load, rescan: scanFolder, importFiles, importFromPicker, importDisc, addDiscTracks, markMaterialized, addClips, remove, clearAll, findByNumber, renumber }
 }
 
 /** Desktop app can transcode DVD/VCD to MP4 (native ffmpeg present). */

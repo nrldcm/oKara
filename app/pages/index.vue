@@ -233,12 +233,20 @@ watch(nowPlaying, (s) => {
 // Publish the songbook (number/title/artist) to remotes so phones can browse
 // and search the library directly.
 watch(library.songs, (list) => {
-  remote.publishSongs(list.map((s) => ({ n: s.number, t: s.title, a: s.artist })))
+  remote.publishSongs(list.filter((s) => !s.clipParent).map((s) => ({ n: s.number, t: s.title, a: s.artist })))
 }, { deep: false, immediate: true })
 
 async function onRenumber(id: string, n: number) {
   const err = await library.renumber(id, n)
   if (err) bus.flash(err)
+}
+
+// Cue-mapper: split a big merged video into searchable songs.
+const mapperSong = ref<RuntimeSong | null>(null)
+function openMapper(s: RuntimeSong) { mapperSong.value = s }
+function onMapped(n: number) {
+  mapperSong.value = null
+  bus.flash(`Mapped ${n} song${n === 1 ? '' : 's'} — searchable now`)
 }
 
 // Mirror the mic/soundboard settings into the remote state so the phone's
@@ -345,7 +353,7 @@ async function onClear() {
     </div>
 
     <main class="content">
-      <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" />
+      <LibraryView v-if="view === 'library'" :songs="library.songs.value" @play="play" @remove="library.remove" @renumber="onRenumber" @map-cues="openMapper" />
       <ImportView v-else-if="view === 'import'" @play-disc="playDisc" />
       <SettingsView v-else @clear="onClear" />
     </main>
@@ -360,6 +368,8 @@ async function onClear() {
       </div>
     </div>
     <p v-if="prepError" class="prep-error">{{ prepError }}</p>
+
+    <SongMapper v-if="mapperSong" :song="mapperSong" @close="mapperSong = null" @saved="onMapped" />
 
     <div v-if="nowPlaying" class="stage-overlay">
       <KaraokePlayer v-if="nowPlaying.kind === 'ultrastar'" :key="nowPlaying.id" :song="nowPlaying" @close="stop" @ended="onEnded" />
