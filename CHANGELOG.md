@@ -13,6 +13,22 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.11] - 2026-07-18
+
+### Added
+
+- **Per-track progress bars during Import .iso** — since tracks now convert in
+  parallel, the import shows a **live sub-bar for each track being converted at
+  once** (with its name and %), under the overall progress bar. Previously the
+  single overall bar could look "stuck" on one number while several tracks were
+  actually progressing behind it.
+
+### Note
+
+- Switching tabs (or playing a song) does **not** stop or pause an import — the
+  conversion runs in the app's background process and keeps going regardless of
+  which screen you're on.
+
 ## [0.9.10] - 2026-07-18
 
 ### Changed
@@ -375,7 +391,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.10...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.11...HEAD
+[0.9.11]: https://github.com/nrldcm/okara/compare/v0.9.10...v0.9.11
 [0.9.10]: https://github.com/nrldcm/okara/compare/v0.9.9...v0.9.10
 [0.9.9]: https://github.com/nrldcm/okara/compare/v0.9.8...v0.9.9
 [0.9.8]: https://github.com/nrldcm/okara/compare/v0.9.7...v0.9.8

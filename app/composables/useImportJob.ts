@@ -8,16 +8,21 @@ export function useImportJob() {
   const active = useState('okara-import-active', () => false)
   const text = useState('okara-import-text', () => '')
   const pct = useState('okara-import-pct', () => 0)
+  // Live per-track sub-progress for the parallel encodes (name + 0..1 fraction).
+  const tracks = useState<{ name: string; fraction: number }[]>('okara-import-tracks', () => [])
   const message = useState<string | null>('okara-import-message', () => null)
   const failed = useState('okara-import-failed', () => false)
   const listening = useState('okara-import-listening', () => false)
 
   function applyProgress(p: any) {
-    const n = (p.index ?? 0) + 1
+    tracks.value = Array.isArray(p.tracks) ? p.tracks : []
+    const doneN = p.index ?? 0
     text.value = p.error
       ? `Skipped ${p.name}: ${p.error}`
-      : `Converting ${p.name} (${n}/${p.total})…`
-    pct.value = Math.round((((p.index ?? 0) + (p.fraction ?? 0)) / Math.max(1, p.total)) * 100)
+      : tracks.value.length
+        ? `Converting — ${doneN} of ${p.total} done, ${tracks.value.length} in progress…`
+        : `Converting ${doneN}/${p.total}…`
+    pct.value = Math.round(((doneN + (p.fraction ?? 0)) / Math.max(1, p.total)) * 100)
   }
 
   /** Register the main→renderer progress listener once, for the app's lifetime. */
@@ -59,8 +64,9 @@ export function useImportJob() {
       failed.value = true
     } finally {
       active.value = false
+      tracks.value = []
     }
   }
 
-  return { active, text, pct, message, failed, ensureListener, runDisc }
+  return { active, text, pct, tracks, message, failed, ensureListener, runDisc }
 }

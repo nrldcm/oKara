@@ -188,6 +188,15 @@ function onPick(e: Event) {
       <div v-if="converting" class="conv">
         <div class="conv__bar"><div class="conv__fill" :style="{ width: job.pct.value + '%' }" /></div>
         <p class="conv__text">{{ job.text.value }} <span v-if="job.pct.value">— {{ job.pct.value }}%</span></p>
+        <div v-if="job.tracks.value.length" class="conv__tracks">
+          <div v-for="(t, i) in job.tracks.value" :key="t.name + i" class="conv__track">
+            <div class="conv__track-head">
+              <span class="conv__track-name">{{ t.name }}</span>
+              <span class="conv__track-pct">{{ Math.round((t.fraction || 0) * 100) }}%</span>
+            </div>
+            <div class="conv__subbar"><div class="conv__subfill" :style="{ width: Math.round((t.fraction || 0) * 100) + '%' }" /></div>
+          </div>
+        </div>
         <p class="conv__keep">You can switch tabs or play a song — the conversion keeps running.</p>
       </div>
       <p v-else-if="job.message.value" class="status" :class="job.failed.value ? 'err' : 'ok'">{{ job.message.value }}</p>
@@ -262,7 +271,13 @@ h1 { font-size: 26px; margin: 0 0 8px; }
 .conv__bar { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; }
 .conv__fill { height: 100%; background: var(--accent-grad); transition: width .2s; }
 .conv__text { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
-.conv__keep { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+.conv__tracks { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.conv__track-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-faint); margin-bottom: 3px; }
+.conv__track-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv__track-pct { flex: none; font-variant-numeric: tabular-nums; }
+.conv__subbar { height: 5px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+.conv__subfill { height: 100%; background: var(--accent-grad); transition: width .2s; }
+.conv__keep { font-size: 12px; color: var(--text-faint); margin-top: 8px; }
 .play-now { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
 .play-now__lead { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; line-height: 1.5; }
 .tracks { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }

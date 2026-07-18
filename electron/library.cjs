@@ -114,16 +114,21 @@ async function importIsos(isoPaths, onProgress) {
   if (!total) return out
 
   // Aggregate progress across parallel jobs: overall = (done + Σ active
-  // fractions) / total, matching the renderer's (index + fraction)/total.
+  // fractions) / total. `tracks` carries each in-flight encode so the UI can
+  // show a live sub-bar per track (parallel converts don't look "stuck").
   let done = 0
-  const active = new Map() // job index → current fraction 0..1
-  const emit = (name, error) => onProgress?.({
-    index: done,
-    total,
-    name,
-    error,
-    fraction: [...active.values()].reduce((a, b) => a + b, 0),
-  })
+  const active = new Map() // slot → { name, fraction }
+  const emit = (name, error) => {
+    const vals = [...active.values()]
+    onProgress?.({
+      index: done,
+      total,
+      name,
+      error,
+      fraction: vals.reduce((a, b) => a + b.fraction, 0),
+      tracks: vals.map((v) => ({ name: v.name, fraction: v.fraction })),
+    })
+  }
 
   // Split cores across the parallel encodes so N ffmpegs don't each grab all
   // cores. Single track → all cores on it.
@@ -132,10 +137,15 @@ async function importIsos(isoPaths, onProgress) {
 
   const runJob = async (job, slot) => {
     const tmp = path.join(os.tmpdir(), `okara-${Date.now()}-${slot}-${job.i}.${ext(job.v.path)}`)
-    active.set(slot, 0)
+    const trackName = path.basename(job.dest)
+    active.set(slot, { name: trackName, fraction: 0 })
+    emit(trackName)
     try {
       iso.extractFile(job.isoPath, job.v.extent, job.v.size, tmp)
-      await transcode(tmp, job.dest, (f) => { active.set(slot, f); emit(path.basename(job.dest)) }, { threads: threadsPer })
+      await transcode(tmp, job.dest, (f) => {
+        active.set(slot, { name: trackName, fraction: f })
+        emit(trackName)
+      }, { threads: threadsPer })
       out.push({ name: path.basename(job.dest), path: job.dest })
     } catch (e) {
       // Drop the truncated output so a failed track never lands in the library.
