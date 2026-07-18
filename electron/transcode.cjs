@@ -22,7 +22,11 @@ function transcode(input, output, onProgress) {
     probeDuration(input).then((durationSec) => {
       const args = [
         '-y',
-        '-fflags', '+genpts',
+        // Robust input for DVD/VCD program streams — skip corrupt/out-of-order
+        // packets so a scratched disc still converts cleanly.
+        '-probesize', '50M', '-analyzeduration', '100M',
+        '-fflags', '+genpts+igndts+discardcorrupt',
+        '-err_detect', 'ignore_err',
         '-i', input,
         '-map', '0:v:0?',
         '-map', '0:a:0?',
@@ -33,6 +37,8 @@ function transcode(input, output, onProgress) {
         '-c:a', 'aac',
         '-b:a', '192k',
         '-ac', '2', // keep stereo for the L/R minus-one trick
+        '-max_muxing_queue_size', '1024',
+        '-avoid_negative_ts', 'make_zero',
         '-movflags', '+faststart',
         output,
       ]

@@ -13,6 +13,20 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.6] - 2026-07-18
+
+### Fixed
+
+- **Disc playback breaking up / glitching** — the live disc/ISO transcode and
+  the import transcode now read DVD/VCD program streams robustly: a larger probe
+  for VOB streams, and they **skip corrupt / out-of-order packets** and ignore
+  read errors so a scratched or hard-to-read disc plays through the damage
+  instead of stuttering (like a hardware player skipping a scratch). The live
+  encoder switched from ultrafast/zerolatency to veryfast for a cleaner picture
+  while still staying ahead of playback. For a badly scratched or slow disc,
+  **importing** (full one-time convert to MP4) still gives the most reliable,
+  glitch-free result.
+
 ## [0.9.5] - 2026-07-18
 
 ### Added
@@ -292,7 +306,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.5...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.6...HEAD
+[0.9.6]: https://github.com/nrldcm/okara/compare/v0.9.5...v0.9.6
 [0.9.5]: https://github.com/nrldcm/okara/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/nrldcm/okara/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/nrldcm/okara/compare/v0.9.2...v0.9.3

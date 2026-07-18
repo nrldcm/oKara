@@ -12,12 +12,21 @@ const SECTOR = 2048
 
 function ffmpegArgs(input) {
   return [
-    '-fflags', '+genpts',
+    // Robust input: bigger probe for VOB program streams, and skip corrupt /
+    // out-of-order packets so a scratched or hard-to-read disc keeps playing
+    // through the damage instead of breaking up (like a hardware player).
+    '-probesize', '50M', '-analyzeduration', '100M',
+    '-fflags', '+genpts+igndts+discardcorrupt',
+    '-err_detect', 'ignore_err',
     '-i', input,
     '-map', '0:v:0?',
     '-map', '0:a:0?',
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-crf', '23', '-pix_fmt', 'yuv420p',
+    // veryfast (not ultrafast/zerolatency) — cleaner picture while still
+    // encoding faster than real time so playback stays ahead.
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k', '-ac', '2',
+    '-max_muxing_queue_size', '1024',
+    '-avoid_negative_ts', 'make_zero',
     '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
     '-f', 'mp4', 'pipe:1',
   ]
