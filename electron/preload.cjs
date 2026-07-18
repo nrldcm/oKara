@@ -23,6 +23,11 @@ contextBridge.exposeInMainWorld('okara', {
     setPort: (port) => ipcRenderer.invoke('okara:set-remote-port', port),
   },
 
+  // Error log (so the user can open it / copy it and send it in).
+  logPath: () => ipcRenderer.invoke('okara:log-path'),
+  openLog: () => ipcRenderer.invoke('okara:open-log'),
+  readLog: () => ipcRenderer.invoke('okara:read-log'),
+
   // Play from a disc / ISO. discPick returns { label, tracks:[{title,src}] };
   // discPrepare transcodes a track's src to a temp MP4 and returns { url } to
   // play (or { error }), reporting progress on onDiscProgress.

@@ -59,8 +59,9 @@ export function useImportJob() {
         message.value = 'No video tracks were imported (cancelled, or nothing convertible found).'
         failed.value = true
       }
-    } catch {
-      message.value = 'Conversion failed.'
+    } catch (e: any) {
+      const detail = e?.message ? String(e.message).replace(/^Error:\s*/, '') : ''
+      message.value = detail ? `Conversion failed: ${detail}` : 'Conversion failed.'
       failed.value = true
     } finally {
       active.value = false

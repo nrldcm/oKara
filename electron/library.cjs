@@ -6,6 +6,7 @@ const path = require('path')
 const { pathToFileURL } = require('url')
 const iso = require('./iso.cjs')
 const { transcode } = require('./transcode.cjs')
+const { log } = require('./log.cjs')
 
 // The on-disk song library: every import is copied here so the whole
 // collection lives in one folder that survives reinstalls. The location is
@@ -27,9 +28,18 @@ function writeConfig(cfg) {
 
 function libraryDir() {
   const cfg = readConfig()
-  const dir = cfg.libraryDir || path.join(app.getPath('music'), 'okara-library')
-  fs.mkdirSync(dir, { recursive: true })
-  return dir
+  const fallback = path.join(app.getPath('music'), 'okara-library')
+  const dir = cfg.libraryDir || fallback
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    return dir
+  } catch (e) {
+    // A stale configured path (a removed drive letter, a perms-denied or UNC
+    // folder) must not break every import — fall back to the default folder.
+    log('libraryDir not writable, using default:', dir, e)
+    fs.mkdirSync(fallback, { recursive: true })
+    return fallback
+  }
 }
 
 /** Copy src into the library dir, renaming on collision ("song (2).mp4"). */
@@ -96,7 +106,8 @@ async function importIsos(isoPaths, onProgress) {
   const reserved = new Set() // dest names claimed up front so parallel workers never collide
   for (const isoPath of isoPaths) {
     let vids = []
-    try { vids = iso.videoFiles(isoPath) } catch { vids = [] }
+    try { vids = iso.videoFiles(isoPath) } catch (e) { log('videoFiles failed for', isoPath, e); vids = [] }
+    if (!vids.length) log('no video tracks found in', isoPath)
     const label = path.parse(isoPath).name
     vids.forEach((v, i) => {
       // Pre-assign each track's library destination sequentially (single
@@ -150,6 +161,7 @@ async function importIsos(isoPaths, onProgress) {
     } catch (e) {
       // Drop the truncated output so a failed track never lands in the library.
       try { await fsp.unlink(job.dest) } catch { /* not created */ }
+      log('import track failed:', job.dest, e)
       emit(path.basename(job.v.path), String(e && e.message || e))
     } finally {
       try { await fsp.unlink(tmp) } catch { /* already gone */ }
@@ -251,20 +263,33 @@ function registerLibraryIpc(getWindow) {
   // renderer refresh (the ffmpeg child keeps running here) and a reloaded
   // renderer can query it to restore the progress UI.
   let currentJob = null
+  // Sending to a renderer that has been closed/reloaded throws ("Object has
+  // been destroyed"). With the parallel importer firing progress constantly,
+  // an unguarded send could reject the whole import — so guard every send.
+  const sendToWin = (win, channel, payload) => {
+    try {
+      if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+        win.webContents.send(channel, payload)
+      }
+    } catch (e) { log('send failed', channel, e) }
+  }
   const progress = (win, p) => {
     currentJob = { ...p, active: true }
-    if (win) win.webContents.send('okara:import-progress', p)
+    sendToWin(win, 'okara:import-progress', p)
   }
 
   async function runJob(win, fn) {
     currentJob = { active: true, index: 0, total: 0, name: '', fraction: 0 }
     try {
       return await fn()
+    } catch (e) {
+      log('import job failed:', e)
+      throw e
     } finally {
       currentJob = null
       // Tell the renderer to rescan the library folder so freshly-converted
       // MP4s appear even if the page was refreshed mid-conversion.
-      if (win) win.webContents.send('okara:import-done')
+      sendToWin(win, 'okara:import-done')
     }
   }
 

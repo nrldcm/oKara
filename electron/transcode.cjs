@@ -3,6 +3,8 @@
 // other import. Stereo channels are preserved for the voice-on/off trick.
 const { spawn } = require('child_process')
 const fs = require('fs')
+let log = () => {}
+try { ({ log } = require('./log.cjs')) } catch { /* logger optional */ }
 
 function ffmpegPath() {
   // @ffmpeg-installer resolves a platform binary from npm (no external
@@ -63,10 +65,17 @@ function transcode(input, output, onProgress, opts = {}) {
           onProgress(Math.min(0.999, t / durationSec))
         }
       })
-      ff.on('error', reject)
+      ff.on('error', (err) => {
+        log('transcode spawn error:', input, '->', output, err)
+        reject(err)
+      })
       ff.on('close', (code) => {
         if (code === 0) { onProgress && onProgress(1); resolve(output) }
-        else reject(new Error('ffmpeg failed (' + code + '): ' + stderr.slice(-500)))
+        else {
+          log('ffmpeg failed', 'code=' + code, 'in=' + input, 'preset=' + preset, 'threads=' + threads,
+            '\nargs: ' + args.join(' '), '\nstderr tail: ' + stderr.slice(-1500))
+          reject(new Error('ffmpeg failed (' + code + '): ' + stderr.slice(-500)))
+        }
       })
     }).catch(reject)
   })

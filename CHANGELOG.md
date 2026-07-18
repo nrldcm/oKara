@@ -13,6 +13,30 @@ installer and portable `.exe` (plus `SHA256SUMS.txt`) attached.
 
 _Nothing yet._
 
+## [0.9.12] - 2026-07-18
+
+### Added
+
+- **Error log** — the app now writes errors (failed conversions, unexpected
+  problems) to a log file, and **Settings → Error log** has **Open log file**
+  and **Copy log** buttons so you can grab the exact error and send it in.
+
+### Changed
+
+- A failed import now shows the **real error message** ("Conversion failed:
+  …") instead of a generic "Conversion failed.", and the same detail is written
+  to the log with the full ffmpeg command and output.
+
+### Fixed
+
+- **"Conversion failed" during Import .iso** — the parallel importer sent
+  progress updates to the window very frequently; if the window had been closed
+  or reloaded, that send threw and rejected the **whole** import. All messages
+  to the window are now guarded, so a stale window can never fail a conversion.
+- **Import failing on a moved/again-missing library folder** — if the saved
+  library folder is no longer writable (e.g. a removed drive letter), okara now
+  **falls back to the default folder** instead of failing every import.
+
 ## [0.9.11] - 2026-07-18
 
 ### Added
@@ -391,7 +415,8 @@ First tagged release, with the Windows desktop build published to
   tag matches `package.json` version.
 - Versioning docs: this `CHANGELOG.md` and `RELEASING.md`.
 
-[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.11...HEAD
+[Unreleased]: https://github.com/nrldcm/okara/compare/v0.9.12...HEAD
+[0.9.12]: https://github.com/nrldcm/okara/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/nrldcm/okara/compare/v0.9.10...v0.9.11
 [0.9.10]: https://github.com/nrldcm/okara/compare/v0.9.9...v0.9.10
 [0.9.9]: https://github.com/nrldcm/okara/compare/v0.9.8...v0.9.9

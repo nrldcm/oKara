@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
 const os = require('os')
 const path = require('path')
 const fs = require('fs')
@@ -7,12 +7,13 @@ const { registerLibraryIpc, readConfig, writeConfig, libraryDir, uniqueDest } = 
 const { startMediaServer } = require('./stream.cjs')
 const isoLib = require('./iso.cjs')
 const { transcode } = require('./transcode.cjs')
+const { log, logPath } = require('./log.cjs')
 
 // Keep the app alive if a background job (transcode, disc scan, socket) throws
 // asynchronously — a single failed track should never take down the whole app
 // (and lose the queue). Errors are logged, not fatal.
-process.on('uncaughtException', (err) => { console.error('uncaughtException:', err) })
-process.on('unhandledRejection', (reason) => { console.error('unhandledRejection:', reason) })
+process.on('uncaughtException', (err) => { log('uncaughtException:', err) })
+process.on('unhandledRejection', (reason) => { log('unhandledRejection:', reason) })
 
 let win = null
 let remote = null
@@ -26,13 +27,24 @@ const allowedSources = new Set()
 // the .exe icon itself is set by electron-builder from build/icon.ico.
 const iconPath = path.join(__dirname, '..', 'build', 'icon.ico')
 
+// Send to the renderer only when it's alive — a closed/reloaded window throws
+// "Object has been destroyed" on .send, and some of these fire constantly
+// (mic PCM, transcode progress), which must never crash the app.
+function send(channel, payload) {
+  try {
+    if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send(channel, payload)
+    }
+  } catch (e) { log('send failed', channel, e) }
+}
+
 const remoteCallbacks = {
-  onCommand: (cmd) => win?.webContents.send('okara:command', cmd),
-  onCountChange: (n) => win?.webContents.send('okara:remote-count', n),
+  onCommand: (cmd) => send('okara:command', cmd),
+  onCountChange: (n) => send('okara:remote-count', n),
   // Phone-as-mic PCM frames → renderer (as a transferable ArrayBuffer).
   onAudio: (buf) => {
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
-    win?.webContents.send('okara:mic-audio', ab)
+    send('okara:mic-audio', ab)
   },
 }
 
@@ -150,7 +162,7 @@ function pollDiscs() {
   const discs = scanDiscs()
   const roots = new Set(discs.map((d) => d.root))
   for (const d of discs) {
-    if (!knownDiscs.has(d.root)) win?.webContents.send('okara:disc-inserted', d)
+    if (!knownDiscs.has(d.root)) send('okara:disc-inserted', d)
   }
   knownDiscs = roots
 }
@@ -195,10 +207,11 @@ ipcMain.handle('okara:disc-prepare', async (_e, srcArg) => {
     }
     if (!input || !fs.existsSync(input)) throw new Error('Track not found')
     const out = tmpBase + '.mp4'
-    await transcode(input, out, (f) => win?.webContents.send('okara:disc-progress', { fraction: f }))
+    await transcode(input, out, (f) => send('okara:disc-progress', { fraction: f }))
     if (src.iso) { try { fs.unlinkSync(input) } catch { /* */ } }
     return { url: streamer.fileUrl(out) }
   } catch (e) {
+    log('disc-prepare failed:', JSON.stringify(src), e)
     return { error: String((e && e.message) || e) }
   }
 })
@@ -221,16 +234,30 @@ ipcMain.handle('okara:disc-materialize', async (_e, srcArg, title) => {
     }
     if (!input || !fs.existsSync(input)) throw new Error('Track not found')
     dest = uniqueDest(libraryDir(), `${safeName(title)}.mp4`)
-    await transcode(input, dest, (f) => win?.webContents.send('okara:disc-progress', { fraction: f }))
+    await transcode(input, dest, (f) => send('okara:disc-progress', { fraction: f }))
     return { path: dest }
   } catch (e) {
     // A failed transcode leaves a truncated file inside the library — remove it
     // so it never shows up as a broken "song".
     if (dest) { try { fs.unlinkSync(dest) } catch { /* not created */ } }
+    log('disc-materialize failed:', JSON.stringify(src), e)
     return { error: String((e && e.message) || e) }
   } finally {
     if (tmp) { try { fs.unlinkSync(tmp) } catch { /* */ } }
   }
+})
+
+// Error log access — the user can open the file or copy its text to send in.
+ipcMain.handle('okara:log-path', () => logPath())
+ipcMain.handle('okara:open-log', async () => {
+  try {
+    if (!fs.existsSync(logPath())) fs.writeFileSync(logPath(), '')
+    await shell.openPath(logPath())
+    return { ok: true, path: logPath() }
+  } catch (e) { return { error: String((e && e.message) || e) } }
+})
+ipcMain.handle('okara:read-log', () => {
+  try { return fs.readFileSync(logPath(), 'utf8').slice(-20000) } catch { return '' }
 })
 
 ipcMain.handle('okara:get-pairing', () => ({ url: remote?.url, token: remote?.token }))

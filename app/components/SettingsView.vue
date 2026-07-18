@@ -121,6 +121,21 @@ async function chooseLibDir() {
   } catch { /* cancelled */ }
 }
 
+const hasLog = import.meta.client && !!(window as any).okara?.openLog
+const logMsg = ref('')
+async function openLog() {
+  try { await (window as any).okara.openLog(); logMsg.value = '' }
+  catch { logMsg.value = 'Could not open the log file.' }
+}
+async function copyLog() {
+  try {
+    const text = await (window as any).okara.readLog()
+    if (!text) { logMsg.value = 'Log is empty — nothing to copy.'; return }
+    await navigator.clipboard.writeText(text)
+    logMsg.value = 'Log copied to clipboard — you can paste it to send in.'
+  } catch { logMsg.value = 'Could not copy the log.' }
+}
+
 function doClear() {
   emit('clear')
   confirmClear.value = false
@@ -231,6 +246,19 @@ function doClear() {
         <button class="del" @click="doClear">Yes, clear</button>
         <button class="mini" @click="confirmClear = false">No</button>
       </div>
+    </div>
+
+    <div v-if="hasLog" class="block">
+      <h3>Error log</h3>
+      <p class="muted small">
+        If something fails (like a conversion), open or copy the log and send it
+        in — it records the exact error so it can be fixed.
+      </p>
+      <div class="log-btns">
+        <button class="mini" @click="openLog"><i class="bi bi-file-earmark-text" /> Open log file</button>
+        <button class="mini" @click="copyLog"><i class="bi bi-clipboard" /> Copy log</button>
+      </div>
+      <p v-if="logMsg" class="muted small">{{ logMsg }}</p>
     </div>
 
     <div class="block">
@@ -353,6 +381,7 @@ h1 { font-size: 26px; margin: 0 0 24px; }
 .save:disabled { opacity: .5; }
 .del { padding: 10px 18px; border-radius: 999px; border: none; background: var(--danger); color: #fff; cursor: pointer; }
 .confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.log-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .about { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 30px; }
 .version { text-align: center; color: var(--text-faint); font-size: 12px; margin: 6px 0 4px; opacity: .8; }
 
